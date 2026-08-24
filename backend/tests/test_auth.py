@@ -1,51 +1,63 @@
 import pytest
-from httpx import AsyncClient
-from app.services.otp_service import _in_memory_otp_cache
+from httpx import AsyncClient, Response
+from unittest.mock import AsyncMock, patch
 
 
 @pytest.mark.asyncio
 async def test_otp_flow_and_authentication(async_client: AsyncClient):
     test_phone = "+919876543210"
 
-    # 1. Request OTP
-    send_resp = await async_client.post(
-        "/api/v1/auth/otp/send",
-        json={"phone": test_phone},
-    )
-    assert send_resp.status_code == 200
-    send_data = send_resp.json()
-    assert send_data["phone"] == test_phone
-    assert "OTP sent successfully" in send_data["message"]
+    # Mock 2Factor send endpoint to return Success
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = Response(
+            200,
+            json={"Status": "Success", "Details": "test-session-12345"},
+        )
 
-    # Retrieve the generated random OTP from cache for testing verification
-    assert test_phone in _in_memory_otp_cache
-    generated_otp, _ = _in_memory_otp_cache[test_phone]
-    assert len(generated_otp) == 6
+        # 1. Request OTP
+        send_resp = await async_client.post(
+            "/api/v1/auth/otp/send",
+            json={"phone": test_phone},
+        )
+        assert send_resp.status_code == 200
+        send_data = send_resp.json()
+        assert send_data["phone"] == test_phone
+        assert "OTP sent successfully" in send_data["message"]
 
     # 2. Verify with wrong OTP
-    bad_verify_resp = await async_client.post(
-        "/api/v1/auth/otp/verify",
-        json={"phone": test_phone, "otp": "000000", "role": "seller"},
-    )
-    assert bad_verify_resp.status_code == 400
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_fail:
+        mock_get_fail.return_value = Response(
+            400,
+            json={"Status": "Error", "Details": "OTP Mismatch"},
+        )
+        bad_verify_resp = await async_client.post(
+            "/api/v1/auth/otp/verify",
+            json={"phone": test_phone, "otp": "000000", "role": "seller"},
+        )
+        assert bad_verify_resp.status_code == 400
 
-    # 3. Verify with valid random OTP
-    good_verify_resp = await async_client.post(
-        "/api/v1/auth/otp/verify",
-        json={"phone": test_phone, "otp": generated_otp, "role": "seller", "name": "Ramesh Artisan"},
-    )
-    assert good_verify_resp.status_code == 200
-    auth_data = good_verify_resp.json()
-    assert "user" in auth_data
-    assert "tokens" in auth_data
-    assert auth_data["user"]["phone"] == test_phone
-    assert auth_data["user"]["name"] == "Ramesh Artisan"
-    assert "seller" in auth_data["user"]["roles"]
-    
-    access_token = auth_data["tokens"]["access_token"]
-    refresh_token = auth_data["tokens"]["refresh_token"]
-    assert access_token is not None
-    assert refresh_token is not None
+    # 3. Verify with valid OTP
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get_success:
+        mock_get_success.return_value = Response(
+            200,
+            json={"Status": "Success", "Details": "OTP Matched"},
+        )
+        good_verify_resp = await async_client.post(
+            "/api/v1/auth/otp/verify",
+            json={"phone": test_phone, "otp": "123456", "role": "seller", "name": "Ramesh Artisan"},
+        )
+        assert good_verify_resp.status_code == 200
+        auth_data = good_verify_resp.json()
+        assert "user" in auth_data
+        assert "tokens" in auth_data
+        assert auth_data["user"]["phone"] == test_phone
+        assert auth_data["user"]["name"] == "Ramesh Artisan"
+        assert "seller" in auth_data["user"]["roles"]
+        
+        access_token = auth_data["tokens"]["access_token"]
+        refresh_token = auth_data["tokens"]["refresh_token"]
+        assert access_token is not None
+        assert refresh_token is not None
 
     # 4. Access protected /me route
     headers = {"Authorization": f"Bearer {access_token}"}
