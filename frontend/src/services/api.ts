@@ -81,7 +81,7 @@ class ApiService {
     return this.request<HealthResponse>("/health");
   }
 
-  // Auth: Send OTP
+  // Auth: Send OTP via SMS
   async sendOtp(phone: string): Promise<OTPResponse> {
     return this.request<OTPResponse>("/auth/otp/send", {
       method: "POST",

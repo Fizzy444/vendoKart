@@ -38,10 +38,16 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # OTP
-    OTP_PROVIDER: str = "dev_mock"
+    OTP_PROVIDER: str = "twilio"
     OTP_API_KEY: str = ""
     OTP_EXPIRY_SECONDS: int = 300
     DEV_MOCK_OTP: str = "123456"
+
+    # Twilio Configuration (Loaded from .env)
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TWILIO_VERIFY_SERVICE_SID: str = ""
+    TWILIO_PHONE_NUMBER: str = ""
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
