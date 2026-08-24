@@ -86,6 +86,71 @@ class AuthService:
         return AuthResponse(user=user_response, tokens=tokens)
 
     @classmethod
+    async def authenticate_with_firebase(
+        cls,
+        id_token: str,
+        phone: Optional[str] = None,
+        role: Optional[UserRole] = None,
+        name: Optional[str] = None,
+    ) -> AuthResponse:
+        decoded = await OTPService.verify_firebase_id_token(id_token)
+        if not decoded and not OTPService.is_dev_mode():
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid Firebase authentication token",
+            )
+
+        # Extract verified phone from token or fallback to request phone in dev
+        verified_phone = (decoded.get("phone_number") if decoded else None) or phone
+        if not verified_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number could not be determined from authentication token",
+            )
+
+        assigned_role = role or UserRole.BUYER
+        user_db = await UserRepository.get_by_phone(verified_phone)
+
+        if not user_db:
+            new_user_data = {
+                "phone": verified_phone,
+                "name": name or (decoded.get("name") if decoded else None),
+                "roles": [assigned_role],
+                "status": UserStatus.ACTIVE,
+                "is_phone_verified": True,
+            }
+            user_db = await UserRepository.create(new_user_data)
+            logger.info(f"Created new user via Firebase with phone {verified_phone}")
+        else:
+            update_fields = {}
+            roles_set = set(user_db.roles)
+            if assigned_role not in roles_set:
+                roles_set.add(assigned_role)
+                update_fields["roles"] = list(roles_set)
+            if name and (not user_db.name or user_db.name != name):
+                update_fields["name"] = name
+            if not user_db.is_phone_verified:
+                update_fields["is_phone_verified"] = True
+
+            if update_fields:
+                updated = await UserRepository.update(user_db.id, update_fields)
+                if updated:
+                    user_db = updated
+
+        role_strings = [r.value if hasattr(r, "value") else str(r) for r in user_db.roles]
+        access_token = create_access_token(subject=user_db.id, roles=role_strings)
+        refresh_token = create_refresh_token(subject=user_db.id)
+
+        user_response = cls._to_user_response(user_db)
+        tokens = TokenPair(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+        )
+
+        return AuthResponse(user=user_response, tokens=tokens)
+
+    @classmethod
     async def refresh_tokens(cls, refresh_token: str) -> TokenPair:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":

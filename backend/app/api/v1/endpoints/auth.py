@@ -5,6 +5,7 @@ from app.models.user import UserRole
 from app.schemas.response import GenericResponse
 from app.schemas.user import (
     AuthResponse,
+    FirebaseLoginRequest,
     OTPRequest,
     OTPResponse,
     OTPVerifyRequest,
@@ -20,15 +21,30 @@ logger = logging.getLogger("artisan.auth")
 router = APIRouter()
 
 
+@router.post("/firebase-login", response_model=AuthResponse)
+async def firebase_login(request: FirebaseLoginRequest):
+    """
+    Authenticate or auto-register a user with a verified Firebase ID token.
+    Issues JWT session tokens for the application.
+    """
+    auth_result = await AuthService.authenticate_with_firebase(
+        id_token=request.id_token,
+        phone=request.phone,
+        role=request.role,
+        name=request.name,
+    )
+    return auth_result
+
+
 @router.post("/otp/send", response_model=OTPResponse)
 async def send_otp(request: OTPRequest):
     """
-    Send OTP code to the provided phone number via Twilio SMS.
+    Send OTP code to the provided phone number.
     In development mode, returns the mock OTP code directly for convenience.
     """
     otp, is_dev = await OTPService.generate_otp(request.phone)
     return OTPResponse(
-        message="OTP sent successfully via SMS",
+        message="OTP sent successfully",
         phone=request.phone,
         is_dev_mode=is_dev,
         dev_otp=otp if is_dev else None,

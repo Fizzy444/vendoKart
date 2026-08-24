@@ -1,9 +1,7 @@
-import asyncio
 import logging
 import random
 import time
 from typing import Dict, Optional, Tuple
-from twilio.rest import Client
 from app.core.config import settings
 from app.core.database import get_redis_client
 
@@ -11,6 +9,39 @@ logger = logging.getLogger("artisan.service.otp")
 
 # In-memory fallback cache for OTPs if Redis is not running: {phone: (otp, expiry_timestamp)}
 _in_memory_otp_cache: Dict[str, Tuple[str, float]] = {}
+
+# Firebase Admin app initialized flag
+_firebase_initialized = False
+
+
+def _init_firebase_admin():
+    global _firebase_initialized
+    if _firebase_initialized:
+        return True
+
+    try:
+        import firebase_admin
+        from firebase_admin import credentials
+
+        if settings.FIREBASE_CREDENTIALS_PATH:
+            cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+            firebase_admin.initialize_app(cred)
+            _firebase_initialized = True
+            logger.info("Firebase Admin initialized with service account certificate.")
+        elif settings.FIREBASE_PROJECT_ID:
+            firebase_admin.initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
+            _firebase_initialized = True
+            logger.info(f"Firebase Admin initialized with project ID: {settings.FIREBASE_PROJECT_ID}")
+        else:
+            # Initialize default app if ADC or env is present
+            if not firebase_admin._apps:
+                firebase_admin.initialize_app()
+            _firebase_initialized = True
+            logger.info("Firebase Admin initialized with default credentials.")
+        return True
+    except Exception as e:
+        logger.warning(f"Firebase Admin SDK initialization skipped: {e}")
+        return False
 
 
 class OTPService:
@@ -22,68 +53,32 @@ class OTPService:
         )
 
     @classmethod
-    def _get_twilio_client(cls) -> Optional[Client]:
-        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
-            try:
-                return Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-            except Exception as e:
-                logger.error(f"Failed to initialize Twilio client: {e}")
+    async def verify_firebase_id_token(cls, id_token: str) -> Optional[Dict]:
+        """
+        Verify a Firebase ID token sent from the client.
+        Returns decoded token dict containing phone_number and uid if valid.
+        """
+        try:
+            import firebase_admin
+            from firebase_admin import auth
+
+            if _init_firebase_admin():
+                decoded_token = auth.verify_id_token(id_token)
+                logger.info(f"Successfully verified Firebase ID token for UID: {decoded_token.get('uid')}")
+                return decoded_token
+        except Exception as e:
+            logger.warning(f"Firebase token verification failed: {e}")
+
+        # In dev mode, allow mock token verification
+        if cls.is_dev_mode() and id_token.startswith("dev-mock-token-"):
+            phone = id_token.replace("dev-mock-token-", "")
+            return {
+                "uid": f"dev_{phone.replace('+', '')}",
+                "phone_number": phone,
+                "firebase": {"sign_in_provider": "phone"},
+            }
+
         return None
-
-    @classmethod
-    def _send_twilio_sms_sync(cls, phone: str, otp: str):
-        client = cls._get_twilio_client()
-        if not client:
-            logger.warning("Twilio client credentials not configured.")
-            return
-
-        clean_phone = phone.strip()
-        if not clean_phone.startswith("+"):
-            clean_phone = f"+{clean_phone}"
-
-        body = f"Your Twilio verification code is: {otp}"
-
-        try:
-            if settings.TWILIO_VERIFY_SERVICE_SID:
-                # Official Twilio Verify API (Works seamlessly on Trial & Paid accounts)
-                verification = client.verify.v2.services(
-                    settings.TWILIO_VERIFY_SERVICE_SID
-                ).verifications.create(to=clean_phone, channel="sms")
-                logger.info(f"Twilio Verify SMS requested successfully. SID: {verification.sid} to {clean_phone}")
-            elif settings.TWILIO_PHONE_NUMBER:
-                # Standard Twilio Programmable SMS
-                msg = client.messages.create(
-                    body=body,
-                    from_=settings.TWILIO_PHONE_NUMBER,
-                    to=clean_phone,
-                )
-                logger.info(f"Twilio SMS message sent successfully. SID: {msg.sid} to {clean_phone}")
-            else:
-                logger.info(
-                    f"[Twilio Info] No TWILIO_PHONE_NUMBER set in .env. Code: {otp}"
-                )
-        except Exception as e:
-            logger.error(f"Error sending SMS via Twilio: {e}")
-
-    @classmethod
-    def _verify_twilio_otp_sync(cls, phone: str, otp: str) -> bool:
-        client = cls._get_twilio_client()
-        if not client or not settings.TWILIO_VERIFY_SERVICE_SID:
-            return False
-
-        clean_phone = phone.strip()
-        if not clean_phone.startswith("+"):
-            clean_phone = f"+{clean_phone}"
-
-        try:
-            check = client.verify.v2.services(
-                settings.TWILIO_VERIFY_SERVICE_SID
-            ).verification_checks.create(to=clean_phone, code=otp)
-            logger.info(f"Twilio Verify check status: {check.status}")
-            return check.status == "approved"
-        except Exception as e:
-            logger.error(f"Error verifying OTP with Twilio Verify: {e}")
-            return False
 
     @classmethod
     async def generate_otp(cls, phone: str) -> Tuple[str, bool]:
@@ -115,13 +110,6 @@ class OTPService:
             _in_memory_otp_cache[phone] = (otp, expiry)
             logger.info(f"Stored OTP in in-memory cache for phone {phone}")
 
-        # Send SMS via Twilio in background thread if configured
-        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
-            try:
-                await asyncio.to_thread(cls._send_twilio_sms_sync, phone, otp)
-            except Exception as e:
-                logger.error(f"Failed to trigger Twilio SMS dispatch task: {e}")
-
         return otp, is_dev
 
     @classmethod
@@ -130,15 +118,6 @@ class OTPService:
         if cls.is_dev_mode() and otp == settings.DEV_MOCK_OTP:
             logger.info(f"Verified dev mock OTP for phone {phone}")
             return True
-
-        # Check Twilio Verify Service if active
-        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_VERIFY_SERVICE_SID:
-            try:
-                approved = await asyncio.to_thread(cls._verify_twilio_otp_sync, phone, otp)
-                if approved:
-                    return True
-            except Exception as e:
-                logger.warning(f"Twilio Verify check failed: {e}")
 
         # Check Redis
         redis_client = get_redis_client()

@@ -37,17 +37,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # OTP
-    OTP_PROVIDER: str = "twilio"
-    OTP_API_KEY: str = ""
+    # OTP & Auth Provider
+    OTP_PROVIDER: str = "firebase"
     OTP_EXPIRY_SECONDS: int = 300
     DEV_MOCK_OTP: str = "123456"
 
-    # Twilio Configuration (Loaded from .env)
-    TWILIO_ACCOUNT_SID: str = ""
-    TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_VERIFY_SERVICE_SID: str = ""
-    TWILIO_PHONE_NUMBER: str = ""
+    # Firebase Configuration (Loaded from .env)
+    FIREBASE_PROJECT_ID: str = ""
+    FIREBASE_CREDENTIALS_PATH: str = ""
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [
