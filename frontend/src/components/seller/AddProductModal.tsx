@@ -24,6 +24,7 @@ import {
   Upload,
   Camera,
   Trash2,
+  Edit2,
 } from "lucide-react";
 
 interface AddProductModalProps {
@@ -84,6 +85,9 @@ export function AddProductModal({
   const [packagingCost, setPackagingCost] = useState<number>(25);
   const [targetMargin, setTargetMargin] = useState<number>(25);
 
+  // Manual final price override state
+  const [customPrice, setCustomPrice] = useState<number | null>(null);
+
   // Inventory & Customization
   const [stockQuantity, setStockQuantity] = useState<number>(10);
   const [leadTimeDays, setLeadTimeDays] = useState<number>(
@@ -92,8 +96,8 @@ export function AddProductModal({
   const [isCustomizable, setIsCustomizable] = useState<boolean>(true);
   const [tagsInput, setTagsInput] = useState("handmade, traditional, eco-friendly");
   
-  // User Provided Image State
-  const [productImageUrl, setProductImageUrl] = useState<string>("");
+  // User Uploaded Image State (No direct URL)
+  const [productImageDataUri, setProductImageDataUri] = useState<string>("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Live Deterministic Pricing Calculations (§11)
@@ -102,7 +106,8 @@ export function AddProductModal({
   const totalUnitCost = Math.round(materialCost + unitLabourCost + packagingCost);
   const minFloorPrice = Math.ceil(totalUnitCost * 1.10);
   const recommendedPrice = Math.ceil(totalUnitCost * (1 + targetMargin / 100));
-  const estimatedProfit = recommendedPrice - totalUnitCost;
+  const effectivePrice = customPrice !== null && customPrice > 0 ? customPrice : recommendedPrice;
+  const estimatedProfit = effectivePrice - totalUnitCost;
 
   // Sync defaults when sellerProfile loads
   useEffect(() => {
@@ -117,7 +122,7 @@ export function AddProductModal({
 
   if (!isOpen) return null;
 
-  // Handle local file selection
+  // Handle direct file upload from device
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -129,21 +134,15 @@ export function AddProductModal({
       reader.onloadend = () => {
         const result = reader.result as string;
         setImagePreview(result);
-        setProductImageUrl(result);
+        setProductImageDataUri(result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setProductImageUrl(val);
-    setImagePreview(val.trim() || null);
-  };
-
   const handleRemoveImage = () => {
     setImagePreview(null);
-    setProductImageUrl("");
+    setProductImageDataUri("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -159,11 +158,18 @@ export function AddProductModal({
       setErrorMsg("Please write a short product description.");
       return;
     }
+    if (!productImageDataUri) {
+      setErrorMsg("Please upload a photo of your craft product.");
+      return;
+    }
+    if (effectivePrice < minFloorPrice) {
+      setErrorMsg(`Final selling price cannot be lower than the guaranteed floor price of ₹${minFloorPrice} / piece.`);
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    const activeImage = productImageUrl.trim();
     const tags = tagsInput
       .split(",")
       .map((t) => t.trim())
@@ -182,10 +188,11 @@ export function AddProductModal({
       production_days: Math.max(1, productionDays),
       packaging_cost_inr: Math.max(0, packagingCost),
       target_margin_percent: Math.max(5, targetMargin),
+      custom_listed_price_inr: effectivePrice,
       stock_quantity: Math.max(0, stockQuantity),
       lead_time_days: Math.max(0, leadTimeDays),
       is_customizable: isCustomizable,
-      images: activeImage ? [activeImage] : [],
+      images: [productImageDataUri],
       tags,
       status: "published",
     };
@@ -214,7 +221,7 @@ export function AddProductModal({
               List Handcrafted Product for Sale
             </h2>
             <p className="text-xs text-slate-400">
-              Stage 1 — Calculate fair production costs with deterministic pricing and publish to marketplace.
+              Stage 1 — Upload your craft photo, calculate fair costs with deterministic pricing, and set your selling price.
             </p>
           </div>
         </div>
@@ -324,10 +331,10 @@ export function AddProductModal({
           </div>
         </div>
 
-        {/* Section 2: User Provided Product Photo */}
+        {/* Section 2: Direct Device Photo Upload (No URL) */}
         <div className="space-y-3 pt-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-artisan-400 flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5" /> 2. Product Photo (Upload or Link)
+            <ImageIcon className="w-3.5 h-3.5" /> 2. Upload Product Photo *
           </h3>
 
           <input
@@ -338,70 +345,58 @@ export function AddProductModal({
             className="hidden"
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-            {/* Upload Area */}
+          {imagePreview ? (
+            /* Selected Photo Preview */
+            <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 h-48 max-w-sm flex items-center justify-center group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imagePreview}
+                alt="Product preview"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold flex items-center gap-1.5 hover:bg-slate-700 transition-colors"
+                >
+                  <Camera className="w-4 h-4" /> Change Photo
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="px-3 py-1.5 rounded-xl bg-red-500 text-white text-xs font-semibold flex items-center gap-1.5 hover:bg-red-600 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" /> Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* File Upload Button / Drag Area */
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-700 hover:border-artisan-500/70 rounded-2xl p-6 text-center bg-slate-950/60 hover:bg-slate-950 cursor-pointer transition-all space-y-2 group"
+              className="border-2 border-dashed border-slate-700 hover:border-artisan-500/70 rounded-2xl p-8 text-center bg-slate-950/60 hover:bg-slate-950 cursor-pointer transition-all space-y-2 group max-w-lg"
             >
-              <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20 group-hover:scale-110 transition-transform">
-                <Upload className="w-5 h-5" />
+              <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20 group-hover:scale-110 transition-transform">
+                <Upload className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-xs font-semibold text-slate-200">
-                  Click to upload product photo from device
+                <p className="text-xs font-bold text-slate-200">
+                  Click to select product image from your device
                 </p>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  PNG, JPG, WEBP up to 5MB
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Supports PNG, JPG, JPEG, WEBP (Max 5MB)
                 </p>
               </div>
             </div>
-
-            {/* Preview or URL Input Box */}
-            <div className="space-y-2">
-              {imagePreview ? (
-                <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 h-32 flex items-center justify-center group">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview}
-                    alt="Product preview"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleRemoveImage}
-                      className="p-2 rounded-xl bg-red-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" /> Remove
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-32 rounded-2xl border border-slate-800 bg-slate-950/40 flex flex-col items-center justify-center text-slate-500 p-4 text-center">
-                  <Camera className="w-6 h-6 mb-1 text-slate-600" />
-                  <span className="text-[11px]">No image selected yet</span>
-                </div>
-              )}
-
-              <div>
-                <input
-                  type="url"
-                  value={productImageUrl.startsWith("data:") ? "" : productImageUrl}
-                  onChange={handleUrlChange}
-                  placeholder="Or paste direct image URL (https://...)"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                />
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Section 3: Deterministic Pricing Engine (§11 Formulas) */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-              <Calculator className="w-3.5 h-3.5" /> 3. Deterministic Pricing Parameters (§11 Math)
+              <Calculator className="w-3.5 h-3.5" /> 3. Production Cost & Pricing Engine (§11 Math)
             </h3>
             <span className="text-[11px] text-slate-400 flex items-center gap-1">
               <HelpCircle className="w-3 h-3 text-slate-500" /> Non-negotiable floor calculation
@@ -525,12 +520,62 @@ export function AddProductModal({
                 <span className="text-[9px] text-amber-500/80">(Never sell below this)</span>
               </div>
 
-              <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-                <span className="text-[11px] text-emerald-300 font-semibold">Recommended (Single Item):</span>
+              <div className="bg-emerald-500/10 p-2.5 rounded-xl border border-emerald-500/20">
+                <span className="text-[11px] text-emerald-300 font-semibold">Recommended Fair Price:</span>
                 <p className="text-base font-extrabold text-emerald-400 mt-0.5">₹{recommendedPrice} <span className="text-xs font-medium text-emerald-300">/ piece</span></p>
-                <span className="text-[9px] text-emerald-400/80 font-medium">+₹{estimatedProfit} profit / piece</span>
+                <span className="text-[9px] text-emerald-400/80 font-medium">+₹{recommendedPrice - totalUnitCost} profit / piece</span>
               </div>
             </div>
+          </div>
+
+          {/* Section 3.1: Final Listed Price Input (Editable by Seller) */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <Edit2 className="w-3.5 h-3.5 text-artisan-400" />
+                Final Listed Selling Price (₹ / piece) *
+              </label>
+              {customPrice !== null && customPrice !== recommendedPrice && (
+                <button
+                  type="button"
+                  onClick={() => setCustomPrice(recommendedPrice)}
+                  className="text-[11px] text-artisan-400 hover:text-artisan-300 underline font-medium self-start sm:self-auto"
+                >
+                  Reset to recommended (₹{recommendedPrice})
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative flex-1 max-w-xs">
+                <span className="absolute left-3.5 top-2.5 text-xs text-slate-400 font-bold">₹</span>
+                <input
+                  type="number"
+                  min={minFloorPrice}
+                  step="5"
+                  value={customPrice !== null ? customPrice : recommendedPrice}
+                  onChange={(e) => setCustomPrice(Number(e.target.value))}
+                  className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-900 border text-slate-100 text-sm font-bold focus:outline-none ${
+                    effectivePrice < minFloorPrice
+                      ? "border-red-500 focus:border-red-500 text-red-400"
+                      : "border-emerald-500 focus:border-emerald-400 text-emerald-300"
+                  }`}
+                />
+              </div>
+              <span className="text-xs text-slate-400">
+                (Profit: <strong className={estimatedProfit >= 0 ? "text-emerald-400" : "text-red-400"}>+₹{estimatedProfit} / piece</strong>)
+              </span>
+            </div>
+
+            {effectivePrice < minFloorPrice ? (
+              <p className="text-[11px] text-red-400 flex items-center gap-1">
+                ⚠️ Price cannot be lower than your production floor of ₹{minFloorPrice} / piece.
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-400">
+                You have full control to customize your listing price. Minimum floor is ₹{minFloorPrice} / piece.
+              </p>
+            )}
           </div>
         </div>
 
@@ -610,7 +655,7 @@ export function AddProductModal({
             className="text-xs bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6"
           >
             <CheckCircle2 className="w-4 h-4 mr-1.5" />
-            Publish Listing at ₹{recommendedPrice} / piece
+            Publish Listing at ₹{effectivePrice} / piece
           </Button>
         </div>
       </form>
