@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     OTP_PROVIDER: str = "2factor"
     OTP_EXPIRY_SECONDS: int = 300
 
-    # 2Factor.in Configuration (Loaded securely from .env)
+    # 2Factor.in Configuration (voice call OTP)
     TWOFACTOR_API_KEY: str = ""
     TWOFACTOR_TEMPLATE_NAME: str = "VENDOKART_OTP"
 
