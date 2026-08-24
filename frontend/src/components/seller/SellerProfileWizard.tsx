@@ -222,34 +222,72 @@ export function SellerProfileWizard({
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
+            const displayName = data.display_name || "";
+
+            const detectedState = addr.state || "";
+            const detectedPincode = addr.postcode ? addr.postcode.replace(/\D/g, "").slice(0, 6) : "";
 
             const detectedCity =
               addr.city ||
               addr.town ||
-              addr.village ||
               addr.municipality ||
+              addr.village ||
+              addr.city_district ||
               addr.suburb ||
               "";
+
             const detectedDistrict =
               addr.state_district ||
-              addr.county ||
               addr.district ||
+              addr.county ||
+              detectedCity ||
               "";
-            const detectedState = addr.state || "";
-            const detectedPincode = addr.postcode ? addr.postcode.replace(/\D/g, "").slice(0, 6) : "";
 
-            const streetParts = [
-              addr.house_number,
-              addr.building,
-              addr.road,
-              addr.neighbourhood,
-              addr.suburb,
-            ].filter(Boolean);
+            // Build rich, complete street/locality address
+            const localKeys = [
+              "house_number",
+              "building",
+              "house_name",
+              "road",
+              "street",
+              "neighbourhood",
+              "residential",
+              "suburb",
+              "city_district",
+              "county",
+              "village",
+              "hamlet",
+            ];
 
-            const detectedStreet =
-              streetParts.length > 0
-                ? streetParts.join(", ")
-                : data.display_name?.split(",").slice(0, 2).join(",") || "";
+            const parts: string[] = [];
+            const seen = new Set<string>();
+
+            for (const key of localKeys) {
+              const val = addr[key];
+              if (
+                val &&
+                !seen.has(val.toLowerCase()) &&
+                val.toLowerCase() !== detectedCity.toLowerCase() &&
+                val.toLowerCase() !== detectedState.toLowerCase()
+              ) {
+                seen.add(val.toLowerCase());
+                parts.push(val);
+              }
+            }
+
+            let detectedStreet = parts.join(", ");
+
+            if (!detectedStreet || detectedStreet.length < 4) {
+              // Fallback: take leading components of display_name before city/state
+              const rawParts = displayName.split(",").map((p: string) => p.trim());
+              const filtered = rawParts.filter(
+                (p: string) =>
+                  p.toLowerCase() !== detectedState.toLowerCase() &&
+                  p.toLowerCase() !== "india" &&
+                  p !== detectedPincode
+              );
+              detectedStreet = filtered.slice(0, 3).join(", ") || displayName.split(",")[0] || "";
+            }
 
             if (detectedStreet) setAddress(detectedStreet);
             if (detectedCity) setCity(detectedCity);
