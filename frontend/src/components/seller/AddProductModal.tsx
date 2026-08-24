@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CraftCategory, SellerProfile } from "@/types/seller";
-import { Product, ProductCreatePayload, ProductPricingBreakdown } from "@/types/product";
+import { Product, ProductCreatePayload } from "@/types/product";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -21,6 +21,9 @@ import {
   Tag,
   Boxes,
   HelpCircle,
+  Upload,
+  Camera,
+  Trash2,
 } from "lucide-react";
 
 interface AddProductModalProps {
@@ -45,50 +48,6 @@ const CRAFT_CATEGORIES: CraftCategory[] = [
   "Other Craft",
 ];
 
-// Curated high quality craft stock images for fast selection
-const SAMPLE_CRAFT_IMAGES: { label: string; category: CraftCategory; url: string }[] = [
-  {
-    label: "Bamboo Lamp",
-    category: "Bamboo Craft",
-    url: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=800&q=80",
-  },
-  {
-    label: "Bamboo Basket",
-    category: "Bamboo Craft",
-    url: "https://images.unsplash.com/photo-1590402494682-cd3fb53b1f70?w=800&q=80",
-  },
-  {
-    label: "Handloom Saree",
-    category: "Handloom & Textiles",
-    url: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&q=80",
-  },
-  {
-    label: "Terracotta Vase",
-    category: "Pottery & Ceramics",
-    url: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?w=800&q=80",
-  },
-  {
-    label: "Clay Chai Cups",
-    category: "Terracotta",
-    url: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&q=80",
-  },
-  {
-    label: "Handmade Jewellery",
-    category: "Handmade Jewellery",
-    url: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=800&q=80",
-  },
-  {
-    label: "Wooden Carved Bowl",
-    category: "Woodworking & Carving",
-    url: "https://images.unsplash.com/photo-1615865417491-9941019fbc00?w=800&q=80",
-  },
-  {
-    label: "Brass Diya",
-    category: "Metal Craft & Bell Metal",
-    url: "https://images.unsplash.com/photo-1605721911519-3dfeb3be25e7?w=800&q=80",
-  },
-];
-
 export function AddProductModal({
   isOpen,
   onClose,
@@ -97,6 +56,7 @@ export function AddProductModal({
 }: AddProductModalProps) {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Form Fields
   const [title, setTitle] = useState("");
@@ -131,10 +91,10 @@ export function AddProductModal({
   );
   const [isCustomizable, setIsCustomizable] = useState<boolean>(true);
   const [tagsInput, setTagsInput] = useState("handmade, traditional, eco-friendly");
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string>(
-    SAMPLE_CRAFT_IMAGES[0].url
-  );
-  const [customImageUrl, setCustomImageUrl] = useState("");
+  
+  // User Provided Image State
+  const [productImageUrl, setProductImageUrl] = useState<string>("");
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Live Deterministic Pricing Calculations (§11)
   const unitLabourCost =
@@ -157,9 +117,36 @@ export function AddProductModal({
 
   if (!isOpen) return null;
 
-  const handleSelectSample = (sample: (typeof SAMPLE_CRAFT_IMAGES)[0]) => {
-    setSelectedImageUrl(sample.url);
-    setCraftCategory(sample.category);
+  // Handle local file selection
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size should be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        setImagePreview(result);
+        setProductImageUrl(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setProductImageUrl(val);
+    setImagePreview(val.trim() || null);
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setProductImageUrl("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -176,7 +163,7 @@ export function AddProductModal({
     setIsSubmitting(true);
     setErrorMsg(null);
 
-    const activeImage = customImageUrl.trim() || selectedImageUrl;
+    const activeImage = productImageUrl.trim();
     const tags = tagsInput
       .split(",")
       .map((t) => t.trim())
@@ -337,49 +324,76 @@ export function AddProductModal({
           </div>
         </div>
 
-        {/* Section 2: Craft Photo Selection */}
+        {/* Section 2: User Provided Product Photo */}
         <div className="space-y-3 pt-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-artisan-400 flex items-center gap-1.5">
-            <ImageIcon className="w-3.5 h-3.5" /> 2. Product Image
+            <ImageIcon className="w-3.5 h-3.5" /> 2. Product Photo (Upload or Link)
           </h3>
 
-          <p className="text-[11px] text-slate-400">
-            Select a high-resolution craft photo or paste an image link:
-          </p>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*"
+            className="hidden"
+          />
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            {SAMPLE_CRAFT_IMAGES.map((sample, idx) => (
-              <button
-                type="button"
-                key={idx}
-                onClick={() => handleSelectSample(sample)}
-                className={`relative rounded-xl overflow-hidden border-2 transition-all group ${
-                  selectedImageUrl === sample.url && !customImageUrl
-                    ? "border-artisan-500 ring-2 ring-artisan-500/30"
-                    : "border-slate-800 opacity-70 hover:opacity-100"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={sample.url}
-                  alt={sample.label}
-                  className="w-full h-20 object-cover group-hover:scale-105 transition-transform"
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            {/* Upload Area */}
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-slate-700 hover:border-artisan-500/70 rounded-2xl p-6 text-center bg-slate-950/60 hover:bg-slate-950 cursor-pointer transition-all space-y-2 group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20 group-hover:scale-110 transition-transform">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-200">
+                  Click to upload product photo from device
+                </p>
+                <p className="text-[10px] text-slate-500 mt-0.5">
+                  PNG, JPG, WEBP up to 5MB
+                </p>
+              </div>
+            </div>
+
+            {/* Preview or URL Input Box */}
+            <div className="space-y-2">
+              {imagePreview ? (
+                <div className="relative rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 h-32 flex items-center justify-center group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imagePreview}
+                    alt="Product preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="p-2 rounded-xl bg-red-500 text-white text-xs font-semibold flex items-center gap-1 hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" /> Remove
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-32 rounded-2xl border border-slate-800 bg-slate-950/40 flex flex-col items-center justify-center text-slate-500 p-4 text-center">
+                  <Camera className="w-6 h-6 mb-1 text-slate-600" />
+                  <span className="text-[11px]">No image selected yet</span>
+                </div>
+              )}
+
+              <div>
+                <input
+                  type="url"
+                  value={productImageUrl.startsWith("data:") ? "" : productImageUrl}
+                  onChange={handleUrlChange}
+                  placeholder="Or paste direct image URL (https://...)"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
-                <span className="absolute bottom-0 inset-x-0 bg-slate-950/80 backdrop-blur-xs text-[10px] text-slate-200 py-0.5 px-1 truncate text-center">
-                  {sample.label}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="pt-1">
-            <input
-              type="url"
-              value={customImageUrl}
-              onChange={(e) => setCustomImageUrl(e.target.value)}
-              placeholder="Or paste your custom image URL (e.g. https://...)"
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-            />
+              </div>
+            </div>
           </div>
         </div>
 
