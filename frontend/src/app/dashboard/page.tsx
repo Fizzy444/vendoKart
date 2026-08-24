@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
+import { SellerProfile } from "@/types/seller";
+import { SellerProfileWizard } from "@/components/seller/SellerProfileWizard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -13,42 +15,61 @@ import {
   Camera,
   Calculator,
   Package,
-  TrendingUp,
   Sparkles,
   Phone,
   ShieldCheck,
   Edit3,
-  Save,
   CheckCircle2,
   Lock,
   ArrowRight,
   LogOut,
   Palette,
-  Heart,
   Store,
+  MapPin,
+  Users,
+  Layers,
+  Clock,
+  IndianRupee,
+  Navigation,
   ChevronRight,
 } from "lucide-react";
-import Link from "next/link";
 
 export default function DashboardPage() {
   const { user, isLoading, openAuthModal, devLogin, logout, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
-  const [editingProfile, setEditingProfile] = useState<boolean>(false);
-  const [nameInput, setNameInput] = useState<string>("");
-  const [businessInput, setBusinessInput] = useState<string>("");
-  const [saveLoading, setSaveLoading] = useState<boolean>(false);
+  const [sellerProfile, setSellerProfile] = useState<SellerProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
+  const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
   // Sync active view with user's primary role
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
-      setNameInput(user.name || "");
-      setBusinessInput(user.business_name || "");
       if (user.roles.includes("buyer") && !user.roles.includes("seller")) {
         setActiveTab("buyer");
       } else {
         setActiveTab("seller");
       }
     }
+  }, [user]);
+
+  // Fetch Seller Profile if user has seller role
+  const fetchSellerProfile = async () => {
+    if (!user || (!user.roles.includes("seller") && !user.roles.includes("admin"))) {
+      return;
+    }
+    setLoadingProfile(true);
+    try {
+      const profile = await api.getSellerProfile();
+      setSellerProfile(profile);
+    } catch (err) {
+      console.warn("Could not fetch seller profile:", err);
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSellerProfile();
   }, [user]);
 
   if (isLoading) {
@@ -115,23 +136,20 @@ export default function DashboardPage() {
     );
   }
 
-  const handleSaveProfile = async () => {
-    setSaveLoading(true);
-    try {
-      await api.updateProfile({
-        name: nameInput,
-        business_name: businessInput,
-      });
-      await refreshUser();
-      setEditingProfile(false);
-    } catch (e: any) {
-      alert("Failed to update profile: " + e.message);
-    } finally {
-      setSaveLoading(false);
-    }
-  };
+  const displayName =
+    sellerProfile?.business_name ||
+    sellerProfile?.artisan_name ||
+    user.business_name ||
+    user.name ||
+    (activeTab === "seller" ? "Master Artisan" : "Craft Collector");
 
-  const displayName = user.business_name || user.name || (activeTab === "seller" ? "Master Artisan" : "Craft Collector");
+  const computedLaborCostPerUnit =
+    sellerProfile && sellerProfile.daily_capacity_units > 0
+      ? (
+          (sellerProfile.daily_labour_rate_inr * sellerProfile.number_of_workers) /
+          sellerProfile.daily_capacity_units
+        ).toFixed(0)
+      : "40";
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
@@ -157,6 +175,12 @@ export default function DashboardPage() {
 
           <p className="text-xs text-slate-400 flex items-center gap-2">
             <Phone className="w-3.5 h-3.5 text-slate-500" /> {user.phone}
+            {sellerProfile?.craft_category && (
+              <>
+                <span className="text-slate-600">•</span>
+                <span className="text-artisan-300 font-medium">{sellerProfile.craft_category}</span>
+              </>
+            )}
           </p>
         </div>
 
@@ -188,15 +212,17 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditingProfile(!editingProfile)}
-            className="text-xs"
-          >
-            <Edit3 className="w-3.5 h-3.5 mr-1" />
-            {editingProfile ? "Cancel" : "Edit Profile"}
-          </Button>
+          {activeTab === "seller" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsWizardOpen(true)}
+              className="text-xs border-artisan-500/40 text-artisan-300 hover:bg-artisan-500/10"
+            >
+              <Edit3 className="w-3.5 h-3.5 mr-1" />
+              Edit Studio Profile
+            </Button>
+          )}
 
           <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-red-400 hover:text-red-300">
             <LogOut className="w-3.5 h-3.5 mr-1" />
@@ -205,99 +231,165 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Profile Edit Drawer */}
-      {editingProfile && (
-        <Card className="p-6 bg-slate-900/95 border-artisan-500/30 shadow-lg animate-in fade-in duration-200">
-          <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
-            <Edit3 className="w-4 h-4 text-artisan-400" />
-            Update Profile Information
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Your Full Name</label>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="e.g. Ramesh Kumar"
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
-              />
+      {/* 2. Onboarding Prompt Banner (If seller hasn't completed full studio setup) */}
+      {activeTab === "seller" && sellerProfile && !sellerProfile.is_onboarded && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-artisan-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-artisan-500"></span>
+              </span>
+              <span className="text-xs font-bold uppercase tracking-wider text-artisan-300">
+                Action Required: Stage 1 Setup
+              </span>
             </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Business / Workshop Name</label>
-              <input
-                type="text"
-                value={businessInput}
-                onChange={(e) => setBusinessInput(e.target.value)}
-                placeholder="e.g. Silk Weavers Collective"
-                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
-              />
+            <h3 className="text-base font-bold text-slate-100">
+              Complete your Artisan Studio & Workspace Profile
+            </h3>
+            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+              Define your craft specialty, active workers, labor wage, and capture GPS coordinates to unlock verified status and deterministic pricing.
+            </p>
+          </div>
+          <Button
+            onClick={() => setIsWizardOpen(true)}
+            className="bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold px-5 shrink-0"
+          >
+            <Sparkles className="w-4 h-4 mr-1.5" />
+            Complete Profile Setup
+          </Button>
+        </div>
+      )}
+
+      {/* 3. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
+      {activeTab === "seller" && sellerProfile && (
+        <Card className="p-6 sm:p-8 bg-slate-900/80 border-slate-800 shadow-xl space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
+                <Hammer className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-slate-100">
+                    {sellerProfile.business_name || "Artisan Craft Studio"}
+                  </h2>
+                  <Badge variant="primary" size="sm">
+                    {sellerProfile.craft_category}
+                  </Badge>
+                  {sellerProfile.is_onboarded && (
+                    <Badge variant="success" size="sm">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Verified Studio
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Lead Artisan: <strong className="text-slate-200">{sellerProfile.artisan_name}</strong> •{" "}
+                  {sellerProfile.experience_years} Years Craft Experience • {sellerProfile.seller_type.replace("_", " ")}
+                </p>
+              </div>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsWizardOpen(true)}
+              className="text-xs shrink-0 self-start sm:self-auto"
+            >
+              <Edit3 className="w-3.5 h-3.5 mr-1.5" />
+              Update Studio Info
+            </Button>
+          </div>
+
+          {/* Bio / Artisan Heritage */}
+          {sellerProfile.bio && (
+            <p className="text-xs text-slate-300 italic bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 leading-relaxed">
+              &ldquo;{sellerProfile.bio}&rdquo;
+            </p>
+          )}
+
+          {/* Craft Specialties Tags */}
+          {sellerProfile.craft_specialties?.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                Craft Specialties & Products:
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {sellerProfile.craft_specialties.map((tag, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2.5 py-1 rounded-lg bg-artisan-500/10 border border-artisan-500/20 text-artisan-300 text-xs font-medium"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Workspace Capacity & Parameters Matrix (§11 Deterministic Foundations) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5 text-artisan-400" /> Active Workers (W)
+              </span>
+              <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.number_of_workers} Craftsmen</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                <IndianRupee className="w-3.5 h-3.5 text-emerald-400" /> Daily Labour Rate (L)
+              </span>
+              <p className="text-lg font-bold text-emerald-400 mt-1">₹{sellerProfile.daily_labour_rate_inr} / day</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Layers className="w-3.5 h-3.5 text-blue-400" /> Daily Capacity (U)
+              </span>
+              <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.daily_capacity_units} units / day</p>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+              <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Base Labor Cost
+              </span>
+              <p className="text-lg font-bold text-amber-400 mt-1">₹{computedLaborCostPerUnit} / unit</p>
             </div>
           </div>
-          <div className="mt-4 flex justify-end">
-            <Button size="sm" onClick={handleSaveProfile} isLoading={saveLoading}>
-              <Save className="w-4 h-4 mr-1.5" />
-              Save Changes
-            </Button>
+
+          {/* Location & Trust Level (§12 Presence Verification) */}
+          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5 text-slate-300">
+              <MapPin className="w-4 h-4 text-artisan-400 shrink-0" />
+              <span>
+                {sellerProfile.location?.city || sellerProfile.location?.state ? (
+                  <>
+                    <strong className="text-slate-100">
+                      {sellerProfile.location.city || "Cluster City"}
+                      {sellerProfile.location.state ? `, ${sellerProfile.location.state}` : ""}
+                    </strong>
+                    {sellerProfile.location.pincode ? ` (${sellerProfile.location.pincode})` : ""}
+                    {sellerProfile.location.address ? ` • ${sellerProfile.location.address}` : ""}
+                  </>
+                ) : (
+                  <span className="text-slate-500">Location not yet configured</span>
+                )}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Trust Score:</span>
+              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                {sellerProfile.trust_score}%
+              </span>
+            </div>
           </div>
         </Card>
       )}
 
-      {/* 2. Key Stats Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {activeTab === "seller" ? (
-          <>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Total Products</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
-              <span className="text-[11px] text-artisan-400 mt-0.5 block">Ready to publish</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Pending Orders</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
-              <span className="text-[11px] text-amber-400 mt-0.5 block">0 to fulfill today</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Total Revenue</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">₹0.00</p>
-              <span className="text-[11px] text-emerald-400 mt-0.5 block">Direct bank payouts</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">AI Assistant</span>
-              <p className="text-2xl font-extrabold text-emerald-400 mt-1 flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                Online
-              </p>
-              <span className="text-[11px] text-slate-400 mt-0.5 block">Voice & Photo ready</span>
-            </Card>
-          </>
-        ) : (
-          <>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Cart Items</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
-              <span className="text-[11px] text-ochre-400 mt-0.5 block">Items saved</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Active Shipments</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
-              <span className="text-[11px] text-emerald-400 mt-0.5 block">In transit</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Artisans Supported</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">100%</p>
-              <span className="text-[11px] text-emerald-400 mt-0.5 block">Fair trade certified</span>
-            </Card>
-            <Card className="p-4 bg-slate-900/60 border-slate-800">
-              <span className="text-xs text-slate-400">Saved Favorites</span>
-              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
-              <span className="text-[11px] text-pink-400 mt-0.5 block">Wishlist crafts</span>
-            </Card>
-          </>
-        )}
-      </div>
-
-      {/* 3. Action Cards (Core Capabilities) */}
+      {/* 4. Action Cards (Core Stage Modules) */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-artisan-400" />
@@ -425,16 +517,27 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 4. Footer Help & Status */}
+      {/* 5. Footer Help & Status */}
       <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          Authenticated with 2Factor.in High-Speed SMS OTP
+          Authenticated with 2Factor.in Voice OTP Security
         </span>
         <span className="text-slate-500">
           vendoKart • AI Virtual Business Manager for Traditional Artisans
         </span>
       </div>
+
+      {/* Seller Profile & Workspace Setup Wizard Modal */}
+      <SellerProfileWizard
+        initialProfile={sellerProfile}
+        isOpen={isWizardOpen}
+        onClose={() => setIsWizardOpen(false)}
+        onSuccess={(updated) => {
+          setSellerProfile(updated);
+          refreshUser();
+        }}
+      />
     </div>
   );
 }

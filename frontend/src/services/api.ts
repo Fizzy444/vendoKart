@@ -139,6 +139,49 @@ class ApiService {
     );
   }
 
+  // Seller: Get Current Seller Profile & Workspace Info
+  async getSellerProfile(): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>("/sellers/me", {}, true);
+  }
+
+  // Seller: Update Seller Profile
+  async updateSellerProfile(
+    data: import("@/types/seller").SellerProfileUpdatePayload
+  ): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>(
+      "/sellers/me",
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Seller: Update Location
+  async updateSellerLocation(
+    location: import("@/types/seller").SellerLocation
+  ): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>(
+      "/sellers/me/location",
+      {
+        method: "POST",
+        body: JSON.stringify(location),
+      },
+      true
+    );
+  }
+
+  // Seller: Get Public Profile
+  async getPublicSeller(sellerId: string): Promise<import("@/types/seller").SellerPublicProfile> {
+    return this.request<import("@/types/seller").SellerPublicProfile>(`/sellers/${sellerId}`);
+  }
+
+  // Seller: List Public Sellers
+  async listPublicSellers(skip: number = 0, limit: number = 20): Promise<import("@/types/seller").SellerPublicProfile[]> {
+    return this.request<import("@/types/seller").SellerPublicProfile[]>(`/sellers/?skip=${skip}&limit=${limit}`);
+  }
+
   // Test Role Protected Routes
   async testSellerRoute(): Promise<{ message: string; data: any }> {
     return this.request<{ message: string; data: any }>("/auth/seller-only", {}, true);
