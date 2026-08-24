@@ -177,9 +177,76 @@ class ApiService {
     return this.request<import("@/types/seller").SellerPublicProfile>(`/sellers/${sellerId}`);
   }
 
-  // Seller: List Public Sellers
-  async listPublicSellers(skip: number = 0, limit: number = 20): Promise<import("@/types/seller").SellerPublicProfile[]> {
-    return this.request<import("@/types/seller").SellerPublicProfile[]>(`/sellers/?skip=${skip}&limit=${limit}`);
+  // Products: Calculate Real-time Pricing Preview (§11)
+  async previewProductPricing(
+    data: import("@/types/product").PricingPreviewRequest
+  ): Promise<import("@/types/product").PricingPreviewResponse> {
+    return this.request<import("@/types/product").PricingPreviewResponse>(
+      "/products/pricing-preview",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  // Products: Create New Product Listing
+  async createProduct(
+    data: import("@/types/product").ProductCreatePayload
+  ): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(
+      "/products",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Products: Get My Listed Products
+  async getMyProducts(): Promise<import("@/types/product").Product[]> {
+    return this.request<import("@/types/product").Product[]>("/products/me", {}, true);
+  }
+
+  // Products: Get Single Product
+  async getProduct(productId: string): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(`/products/${productId}`);
+  }
+
+  // Products: Update Product Listing
+  async updateProduct(
+    productId: string,
+    data: Partial<import("@/types/product").ProductCreatePayload>
+  ): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(
+      `/products/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Products: Delete Product
+  async deleteProduct(productId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(
+      `/products/${productId}`,
+      {
+        method: "DELETE",
+      },
+      true
+    );
+  }
+
+  // Products: Public Marketplace List
+  async listMarketplaceProducts(
+    category?: string,
+    limit: number = 50
+  ): Promise<import("@/types/product").Product[]> {
+    const query = category ? `?category=${encodeURIComponent(category)}&limit=${limit}` : `?limit=${limit}`;
+    return this.request<import("@/types/product").Product[]>(`/products/marketplace${query}`);
   }
 
   // Test Role Protected Routes

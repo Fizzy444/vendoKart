@@ -4,7 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
 import { SellerProfile } from "@/types/seller";
+import { Product } from "@/types/product";
 import { SellerProfileWizard } from "@/components/seller/SellerProfileWizard";
+import { AddProductModal } from "@/components/seller/AddProductModal";
+import { SellerProductsList } from "@/components/seller/SellerProductsList";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +25,7 @@ import {
   CheckCircle2,
   Lock,
   ArrowRight,
-  LogOut,
+  Plus,
   Palette,
   Store,
   MapPin,
@@ -37,14 +40,17 @@ export default function DashboardPage() {
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
+  // Products state
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
+  const [isAddProductOpen, setIsAddProductOpen] = useState<boolean>(false);
+
   // Derive role
   const isSeller = user?.roles.includes("seller") || user?.roles.includes("admin");
 
-  // Fetch Seller Profile if user has seller role
+  // Fetch Seller Profile
   const fetchSellerProfile = async () => {
-    if (!user || !isSeller) {
-      return;
-    }
+    if (!user || !isSeller) return;
     setLoadingProfile(true);
     try {
       const profile = await api.getSellerProfile();
@@ -56,8 +62,23 @@ export default function DashboardPage() {
     }
   };
 
+  // Fetch Listed Products
+  const fetchProducts = async () => {
+    if (!user || !isSeller) return;
+    setLoadingProducts(true);
+    try {
+      const prods = await api.getMyProducts();
+      setProducts(prods);
+    } catch (err) {
+      console.warn("Could not fetch products:", err);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
   useEffect(() => {
     fetchSellerProfile();
+    fetchProducts();
   }, [user]);
 
   if (isLoading) {
@@ -169,16 +190,22 @@ export default function DashboardPage() {
                 <span className="text-artisan-300 font-medium">{sellerProfile.craft_category}</span>
               </>
             )}
+            {isSeller && (
+              <>
+                <span className="text-slate-600">•</span>
+                <span className="text-emerald-400 font-semibold">{products.length} Products Listed</span>
+              </>
+            )}
           </p>
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/* SELLER DASHBOARD VIEW ONLY                                    */}
+      {/* SELLER DASHBOARD VIEW                                        */}
       {/* ============================================================ */}
       {isSeller ? (
         <>
-          {/* 2. Inline Studio Configuration Card (When Editing) */}
+          {/* 2. In-Page Studio Profile Editor (When Editing) */}
           {isWizardOpen && (
             <SellerProfileWizard
               initialProfile={sellerProfile}
@@ -192,8 +219,21 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* 3. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
-          {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && (
+          {/* 3. In-Page Add Product Listing Modal / Card */}
+          {isAddProductOpen && (
+            <AddProductModal
+              isOpen={isAddProductOpen}
+              sellerProfile={sellerProfile}
+              onClose={() => setIsAddProductOpen(false)}
+              onSuccess={(newProduct) => {
+                setProducts((prev) => [newProduct, ...prev]);
+                setIsAddProductOpen(false);
+              }}
+            />
+          )}
+
+          {/* 4. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
+          {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && !isAddProductOpen && (
             <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -222,7 +262,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* 4. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
+          {/* 5. Artisan Studio Overview Card */}
           {sellerProfile && !isWizardOpen && (
             <Card className="p-6 sm:p-8 bg-slate-900 border-slate-800 shadow-xl space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
@@ -252,15 +292,25 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsWizardOpen(true)}
-                  className="text-xs shrink-0 self-start sm:self-auto"
-                >
-                  <Edit3 className="w-3.5 h-3.5 mr-1.5" />
-                  Update Studio Info
-                </Button>
+                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsWizardOpen(true)}
+                    className="text-xs"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 mr-1.5" />
+                    Update Studio Info
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsAddProductOpen(true)}
+                    className="text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Add Product for Sale
+                  </Button>
+                </div>
               </div>
 
               {/* Bio / Artisan Heritage */}
@@ -350,8 +400,18 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          {/* 5. Seller Stage Modules */}
-          <div className="space-y-4">
+          {/* 6. Product Listings & Catalogue Section */}
+          <SellerProductsList
+            products={products}
+            isLoading={loadingProducts}
+            onOpenAddModal={() => setIsAddProductOpen(true)}
+            onProductDeleted={(deletedId) =>
+              setProducts((prev) => prev.filter((p) => p.id !== deletedId))
+            }
+          />
+
+          {/* 7. Artisan Business Manager Modules */}
+          <div className="space-y-4 pt-2">
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-artisan-400" />
               Artisan Business Manager Modules
@@ -359,7 +419,11 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Voice Cataloging */}
-              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <Card
+                variant="interactive"
+                onClick={() => setIsAddProductOpen(true)}
+                className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60"
+              >
                 <div className="flex items-start justify-between">
                   <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
                     <Mic className="w-6 h-6" />
@@ -373,7 +437,7 @@ export default function DashboardPage() {
                   Describe your craft in Hindi, Tamil, Bengali, or English. AI automatically transcribes specifications, story, and attributes.
                 </p>
                 <div className="pt-2 flex items-center text-xs font-semibold text-artisan-400 group-hover:translate-x-1 transition-transform">
-                  Start Voice Recording <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  Add Craft Object <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </div>
               </Card>
 
@@ -397,7 +461,11 @@ export default function DashboardPage() {
               </Card>
 
               {/* Deterministic Fair Pricing */}
-              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <Card
+                variant="interactive"
+                onClick={() => setIsAddProductOpen(true)}
+                className="p-6 space-y-3 cursor-pointer group hover:border-emerald-500/60"
+              >
                 <div className="flex items-start justify-between">
                   <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                     <Calculator className="w-6 h-6" />
@@ -411,12 +479,12 @@ export default function DashboardPage() {
                   Input raw materials + hourly labor. Hard math guarantees a profitable non-negotiable floor price for your hard work.
                 </p>
                 <div className="pt-2 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
-                  Calculate Margins <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                  Calculate Fair Price <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </div>
               </Card>
 
               {/* Orders & Bulk Aggregation */}
-              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-indigo-500/60">
                 <div className="flex items-start justify-between">
                   <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
                     <Package className="w-6 h-6" />
@@ -438,7 +506,7 @@ export default function DashboardPage() {
         </>
       ) : (
         /* ============================================================ */
-        /* BUYER DASHBOARD VIEW ONLY                                    */
+        /* BUYER DASHBOARD VIEW                                         */
         /* ============================================================ */
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">

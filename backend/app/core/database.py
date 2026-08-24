@@ -95,6 +95,10 @@ def get_database() -> AsyncIOMotorDatabase:
     return db_state.db
 
 
+def is_mongo_online() -> bool:
+    return db_state.is_mongo_online
+
+
 def get_redis_client() -> Optional[aioredis.Redis]:
     if not db_state.is_redis_online:
         return None
