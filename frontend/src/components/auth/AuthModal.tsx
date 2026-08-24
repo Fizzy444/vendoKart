@@ -15,6 +15,8 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
+  MessageSquare,
+  MessageCircle,
 } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
@@ -22,6 +24,7 @@ export const AuthModal: React.FC = () => {
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [role, setRole] = useState<"seller" | "buyer">(authModalRole || "seller");
+  const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [phone, setPhone] = useState<string>("+91 98765 43210");
   const [name, setName] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
@@ -47,7 +50,7 @@ export const AuthModal: React.FC = () => {
       if (cleanPhone.length < 10) {
         throw new Error("Please enter a valid phone number");
       }
-      const response = await api.sendOtp(cleanPhone);
+      const response = await api.sendOtp(cleanPhone, channel);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
         setOtp(response.dev_otp); // Auto-fill in dev mode for maximum developer convenience!
@@ -107,7 +110,7 @@ export const AuthModal: React.FC = () => {
           <p className="text-sm text-slate-400 mt-1">
             {step === "phone"
               ? "Sign in or register with your mobile number"
-              : `Enter the 6-digit code sent to ${phone}`}
+              : `Enter the 6-digit code sent via ${channel === "whatsapp" ? "WhatsApp" : "SMS"} to ${phone}`}
           </p>
         </div>
 
@@ -184,7 +187,47 @@ export const AuthModal: React.FC = () => {
               </div>
             </div>
 
-            <Button type="submit" isLoading={isLoading} className="w-full mt-2" size="lg">
+            {/* Channel Selection (SMS vs WhatsApp) */}
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1">
+                OTP Delivery Method
+              </label>
+              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setChannel("sms")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+                    channel === "sms"
+                      ? "bg-slate-800 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-artisan-400" />
+                  SMS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setChannel("whatsapp")}
+                  className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all ${
+                    channel === "whatsapp"
+                      ? "bg-emerald-950 text-emerald-300 border border-emerald-600/50 shadow-sm"
+                      : "text-slate-400 hover:text-emerald-400"
+                  }`}
+                >
+                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                  WhatsApp
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              className={`w-full mt-2 ${
+                channel === "whatsapp" ? "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500" : ""
+              }`}
+              size="lg"
+            >
               Get Verification Code
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
@@ -234,7 +277,7 @@ export const AuthModal: React.FC = () => {
                 onClick={() => setStep("phone")}
                 className="hover:text-slate-200 transition-colors"
               >
-                ← Change Number
+                ← Change Number / Method
               </button>
               <button
                 type="button"

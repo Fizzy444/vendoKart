@@ -81,11 +81,11 @@ class ApiService {
     return this.request<HealthResponse>("/health");
   }
 
-  // Auth: Send OTP
-  async sendOtp(phone: string): Promise<OTPResponse> {
+  // Auth: Send OTP via SMS or WhatsApp
+  async sendOtp(phone: string, channel: "sms" | "whatsapp" = "sms"): Promise<OTPResponse> {
     return this.request<OTPResponse>("/auth/otp/send", {
       method: "POST",
-      body: JSON.stringify({ phone }),
+      body: JSON.stringify({ phone, channel }),
     });
   }
 

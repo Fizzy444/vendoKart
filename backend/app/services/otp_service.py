@@ -1,7 +1,9 @@
+import asyncio
 import logging
 import random
 import time
 from typing import Dict, Optional, Tuple
+from twilio.rest import Client
 from app.core.config import settings
 from app.core.database import get_redis_client
 
@@ -20,14 +22,74 @@ class OTPService:
         )
 
     @classmethod
-    async def generate_otp(cls, phone: str) -> Tuple[str, bool]:
+    def _get_twilio_client(cls) -> Optional[Client]:
+        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
+            try:
+                return Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            except Exception as e:
+                logger.error(f"Failed to initialize Twilio client: {e}")
+        return None
+
+    @classmethod
+    def _send_twilio_message_sync(cls, phone: str, otp: str, channel: str):
+        client = cls._get_twilio_client()
+        if not client:
+            logger.warning("Twilio client credentials not configured.")
+            return
+
+        clean_phone = phone.strip()
+        if not clean_phone.startswith("+"):
+            clean_phone = f"+{clean_phone}"
+
+        body = (
+            f"Your vendoKart verification code is: {otp}\n"
+            f"Valid for 5 minutes. Do not share this code with anyone."
+        )
+
+        try:
+            if channel == "whatsapp":
+                # Twilio WhatsApp message
+                from_number = settings.TWILIO_WHATSAPP_NUMBER or "whatsapp:+14155238886"
+                to_number = f"whatsapp:{clean_phone}"
+                msg = client.messages.create(
+                    body=body,
+                    from_=from_number,
+                    to=to_number,
+                )
+                logger.info(f"Twilio WhatsApp message sent successfully. SID: {msg.sid} to {to_number}")
+
+            else:
+                # Twilio SMS message
+                if settings.TWILIO_VERIFY_SERVICE_SID:
+                    # Twilio Verify API
+                    verification = client.verify.v2.services(
+                        settings.TWILIO_VERIFY_SERVICE_SID
+                    ).verifications.create(to=clean_phone, channel="sms")
+                    logger.info(f"Twilio Verify SMS requested. SID: {verification.sid}")
+                elif settings.TWILIO_PHONE_NUMBER:
+                    msg = client.messages.create(
+                        body=body,
+                        from_=settings.TWILIO_PHONE_NUMBER,
+                        to=clean_phone,
+                    )
+                    logger.info(f"Twilio SMS message sent successfully. SID: {msg.sid} to {clean_phone}")
+                else:
+                    logger.info(
+                        f"[Twilio Info] No TWILIO_PHONE_NUMBER set for SMS. For testing, set TWILIO_PHONE_NUMBER in .env. Code: {otp}"
+                    )
+        except Exception as e:
+            logger.error(f"Error sending message via Twilio ({channel}): {e}")
+
+    @classmethod
+    async def generate_otp(cls, phone: str, channel: str = "sms") -> Tuple[str, bool]:
         is_dev = cls.is_dev_mode()
-        
+
         if is_dev and settings.DEV_MOCK_OTP:
             otp = settings.DEV_MOCK_OTP
         else:
             otp = f"{random.randint(100000, 999999)}"
 
+        # Store OTP in cache
         redis_client = get_redis_client()
         stored_in_redis = False
 
@@ -47,6 +109,13 @@ class OTPService:
             expiry = time.time() + settings.OTP_EXPIRY_SECONDS
             _in_memory_otp_cache[phone] = (otp, expiry)
             logger.info(f"Stored OTP in in-memory cache for phone {phone}")
+
+        # Send via Twilio in background thread if configured
+        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
+            try:
+                await asyncio.to_thread(cls._send_twilio_message_sync, phone, otp, channel)
+            except Exception as e:
+                logger.error(f"Failed to trigger Twilio dispatch task: {e}")
 
         return otp, is_dev
 

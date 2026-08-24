@@ -37,6 +37,7 @@ export interface AuthResponse {
 export interface OTPResponse {
   message: string;
   phone: string;
+  channel?: "sms" | "whatsapp";
   is_dev_mode: boolean;
   dev_otp?: string;
 }
