@@ -11,7 +11,6 @@ import {
 } from "@/types/seller";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import {
   Hammer,
   Sparkles,
@@ -155,7 +154,7 @@ export function SellerProfileWizard({
     initialProfile?.lead_time_days ?? 3
   );
 
-  // Form State - Step 3: Location (Coordinates kept internally in state for backend verification)
+  // Form State - Step 3: Location
   const [latitude, setLatitude] = useState<number | undefined>(
     initialProfile?.location?.latitude
   );
@@ -364,478 +363,472 @@ export function SellerProfileWizard({
       : "0";
 
   return (
-    <div
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200"
-    >
-      <div className="max-w-2xl w-full bg-[#0f172a] border border-slate-700/80 rounded-3xl shadow-2xl shadow-black/80 overflow-hidden flex flex-col max-h-[90vh] relative z-50">
-        {/* Modal Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
-              <Hammer className="w-5 h-5" />
+    <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-200">
+      {/* Card Header */}
+      <div className="p-6 sm:p-7 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
+            <Hammer className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              Artisan Studio & Workspace Setup
+            </h2>
+            <p className="text-xs text-slate-400">
+              Stage 1 — Verify your craft specialty, production capacity, and workshop location.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-200 p-2 rounded-xl hover:bg-slate-800 transition-colors"
+          title="Close Editor"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Step Indicator */}
+      <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/40 text-xs">
+        <button
+          type="button"
+          onClick={() => setStep(1)}
+          className={`py-3.5 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
+            step === 1
+              ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
+            1
+          </span>
+          Craft & Story
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStep(2)}
+          className={`py-3.5 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
+            step === 2
+              ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
+            2
+          </span>
+          Capacity & Pricing
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStep(3)}
+          className={`py-3.5 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
+            step === 3
+              ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
+            3
+          </span>
+          Workshop Location
+        </button>
+      </div>
+
+      {/* Form Body */}
+      <div className="p-6 sm:p-8 space-y-6">
+        {errorMsg && (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between">
+            <span>{errorMsg}</span>
+            <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-300">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* STEP 1: CRAFT & STORY */}
+        {step === 1 && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Lead Artisan Full Name *
+                </label>
+                <input
+                  type="text"
+                  value={artisanName}
+                  onChange={(e) => setArtisanName(e.target.value)}
+                  placeholder="e.g. Ramesh Chandra"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Workshop / Brand Business Name
+                </label>
+                <input
+                  type="text"
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="e.g. Chandra Heritage Weaves"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+              </div>
             </div>
+
             <div>
-              <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                Artisan Studio & Workspace Setup
-              </h2>
-              <p className="text-xs text-slate-400">
-                Stage 1 — Verify your craft specialty, production capacity, and workshop location.
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Primary Craft Category *
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {CRAFT_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setCraftCategory(cat)}
+                    className={`p-2.5 rounded-xl text-xs font-medium border text-left transition-all ${
+                      craftCategory === cat
+                        ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
+                        : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Specialties & Products (comma separated)
+              </label>
+              <input
+                type="text"
+                value={specialtiesText}
+                onChange={(e) => setSpecialtiesText(e.target.value)}
+                placeholder="e.g. Bamboo lamps, cane baskets, fruit bowls, hand-carved trays"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Years of Craft Experience
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="80"
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Artisan Operational Structure
+                </label>
+                <select
+                  value={sellerType}
+                  onChange={(e) => setSellerType(e.target.value as SellerType)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                >
+                  {SELLER_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Heritage Story & Craft Journey
+              </label>
+              <textarea
+                rows={3}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Share the generational heritage of your technique, traditional materials sourced, and family traditions..."
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 resize-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: CAPACITY & WORKSPACE */}
+        {step === 2 && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Workspace Facility Type
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {WORKSPACE_TYPES.map((w) => (
+                  <button
+                    key={w.value}
+                    type="button"
+                    onClick={() => setWorkspaceType(w.value)}
+                    className={`p-3 rounded-xl text-left border transition-all ${
+                      workspaceType === w.value
+                        ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
+                        : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
+                    }`}
+                  >
+                    <div className="text-xs font-bold text-slate-200">{w.label}</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">{w.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-artisan-400" />
+                  Number of Active Workers (W)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={numberOfWorkers}
+                  onChange={(e) => setNumberOfWorkers(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Artisans actively crafting at this studio
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <IndianRupee className="w-3.5 h-3.5 text-emerald-400" />
+                  Daily Labour Rate / Worker (L)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="50"
+                  value={dailyLabourRate}
+                  onChange={(e) => setDailyLabourRate(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Fair daily wage rate (₹/day)
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-400" />
+                  Daily Production Capacity (U)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5000"
+                  value={dailyCapacityUnits}
+                  onChange={(e) => setDailyCapacityUnits(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Average finished units crafted per day
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  Order Lead Time (Days)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={leadTimeDays}
+                  onChange={(e) => setLeadTimeDays(Number(e.target.value))}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Production prep time for custom orders
+                </p>
+              </div>
+            </div>
+
+            {/* Formula & Deterministic Preview Card (§11) */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-artisan-950/60 to-slate-950 border border-artisan-500/30 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-artisan-300">
+                <Sparkles className="w-4 h-4 text-artisan-400" />
+                <span>Deterministic Pricing Engine (§11 Formula Preview)</span>
+              </div>
+              <p className="text-[11px] text-slate-300 font-mono">
+                Unit Labour Cost = (W × L) / U = ({numberOfWorkers} × ₹{dailyLabourRate}) / {dailyCapacityUnits} ={" "}
+                <strong className="text-emerald-400 font-bold">₹{computedUnitLaborCost} / unit</strong>
+              </p>
+              <p className="text-[10px] text-slate-500">
+                This deterministic cost foundation will automatically guide your catalogue pricing engine when listing products.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-2 rounded-xl hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        )}
 
-        {/* Step Indicator */}
-        <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/30 text-xs">
-          <button
-            type="button"
-            onClick={() => setStep(1)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
-              step === 1
-                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
-              1
-            </span>
-            Craft & Story
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
-              step === 2
-                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
-              2
-            </span>
-            Capacity & Pricing
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setStep(3)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
-              step === 3
-                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
-                : "border-transparent text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
-              3
-            </span>
-            Workshop Location
-          </button>
-        </div>
-
-        {/* Modal Body / Scrollable Form */}
-        <div className="p-6 overflow-y-auto space-y-6 flex-1">
-          {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between">
-              <span>{errorMsg}</span>
-              <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-300">
-                <X className="w-4 h-4" />
-              </button>
+        {/* STEP 3: WORKSHOP LOCATION & PRESENCE */}
+        {step === 3 && (
+          <div className="space-y-4 animate-in fade-in duration-200">
+            {/* 1-Click GPS Auto-Fill Banner */}
+            <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
+                  <MapPin className="w-4 h-4 text-artisan-400" />
+                  <span>Auto-detect Workshop Address from GPS</span>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Click to automatically fill your studio street, city, state, and PIN code.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="primary"
+                onClick={handleCaptureLocation}
+                disabled={isLocating}
+                className="shrink-0 text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
+              >
+                <Navigation className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
+                {isLocating ? "Detecting Address..." : "Detect Workshop Location"}
+              </Button>
             </div>
-          )}
 
-          {/* STEP 1: CRAFT & STORY */}
-          {step === 1 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Lead Artisan Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={artisanName}
-                    onChange={(e) => setArtisanName(e.target.value)}
-                    placeholder="e.g. Ramesh Chandra"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Workshop / Brand Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="e.g. Chandra Heritage Weaves"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
+            {/* Status Badge upon successful detection */}
+            {city && stateName && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                <Check className="w-4 h-4 shrink-0 text-emerald-400" />
+                <span>
+                  <strong>Location Verified:</strong> {city}, {stateName} {pincode ? `(${pincode})` : ""}
+                </span>
               </div>
+            )}
 
+            {/* Workshop Street Address */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                Workshop / Studio Street Address
+              </label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="e.g. Ward 3, North Zone, Near River Bank"
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Primary Craft Category *
-                </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {CRAFT_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCraftCategory(cat)}
-                      className={`p-2.5 rounded-xl text-xs font-medium border text-left transition-all ${
-                        craftCategory === cat
-                          ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
-                          : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Specialties & Products (comma separated)
+                  City / Town / Village *
                 </label>
                 <input
                   type="text"
-                  value={specialtiesText}
-                  onChange={(e) => setSpecialtiesText(e.target.value)}
-                  placeholder="e.g. Bamboo lamps, cane baskets, fruit bowls, hand-carved trays"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. Coimbatore"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Years of Craft Experience
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="80"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Artisan Operational Structure
-                  </label>
-                  <select
-                    value={sellerType}
-                    onChange={(e) => setSellerType(e.target.value as SellerType)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  >
-                    {SELLER_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Heritage Story & Craft Journey
-                </label>
-                <textarea
-                  rows={3}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Share the generational heritage of your technique, traditional materials sourced, and family traditions..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 resize-none"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: CAPACITY & WORKSPACE */}
-          {step === 2 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Workspace Facility Type
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {WORKSPACE_TYPES.map((w) => (
-                    <button
-                      key={w.value}
-                      type="button"
-                      onClick={() => setWorkspaceType(w.value)}
-                      className={`p-3 rounded-xl text-left border transition-all ${
-                        workspaceType === w.value
-                          ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
-                          : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="text-xs font-bold text-slate-200">{w.label}</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">{w.desc}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-artisan-400" />
-                    Number of Active Workers (W)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="500"
-                    value={numberOfWorkers}
-                    onChange={(e) => setNumberOfWorkers(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Artisans actively crafting at this studio
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <IndianRupee className="w-3.5 h-3.5 text-emerald-400" />
-                    Daily Labour Rate / Worker (L)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="50"
-                    value={dailyLabourRate}
-                    onChange={(e) => setDailyLabourRate(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Fair daily wage rate (₹/day)
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-blue-400" />
-                    Daily Production Capacity (U)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="5000"
-                    value={dailyCapacityUnits}
-                    onChange={(e) => setDailyCapacityUnits(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Average finished units crafted per day
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
-                    Order Lead Time (Days)
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    value={leadTimeDays}
-                    onChange={(e) => setLeadTimeDays(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Production prep time for custom orders
-                  </p>
-                </div>
-              </div>
-
-              {/* Formula & Deterministic Preview Card (§11) */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-artisan-950/60 to-slate-950 border border-artisan-500/30 space-y-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-artisan-300">
-                  <Sparkles className="w-4 h-4 text-artisan-400" />
-                  <span>Deterministic Pricing Engine (§11 Formula Preview)</span>
-                </div>
-                <p className="text-[11px] text-slate-300 font-mono">
-                  Unit Labour Cost = (W × L) / U = ({numberOfWorkers} × ₹{dailyLabourRate}) / {dailyCapacityUnits} ={" "}
-                  <strong className="text-emerald-400 font-bold">₹{computedUnitLaborCost} / unit</strong>
-                </p>
-                <p className="text-[10px] text-slate-500">
-                  This deterministic cost foundation will automatically guide your catalogue pricing engine when listing products.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: WORKSHOP LOCATION & PRESENCE */}
-          {step === 3 && (
-            <div className="space-y-4 animate-in fade-in duration-200">
-              {/* 1-Click GPS Auto-Fill Banner */}
-              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                    <MapPin className="w-4 h-4 text-artisan-400" />
-                    <span>Auto-detect Workshop Address from GPS</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Click to automatically fill your studio street, city, state, and PIN code.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="primary"
-                  onClick={handleCaptureLocation}
-                  disabled={isLocating}
-                  className="shrink-0 text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
-                >
-                  <Navigation className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
-                  {isLocating ? "Detecting Address..." : "Detect Workshop Location"}
-                </Button>
-              </div>
-
-              {/* Status Badge upon successful detection */}
-              {city && stateName && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-                  <Check className="w-4 h-4 shrink-0 text-emerald-400" />
-                  <span>
-                    <strong>Location Verified:</strong> {city}, {stateName} {pincode ? `(${pincode})` : ""}
-                  </span>
-                </div>
-              )}
-
-              {/* Workshop Street Address */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Workshop / Studio Street Address
+                  District
                 </label>
                 <input
                   type="text"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Ward 3, North Zone, Near River Bank"
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  placeholder="e.g. Coimbatore"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  State *
+                </label>
+                <input
+                  type="text"
+                  value={stateName}
+                  onChange={(e) => setStateName(e.target.value)}
+                  placeholder="e.g. Tamil Nadu"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    City / Town / Village *
-                  </label>
-                  <input
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Coimbatore"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    District
-                  </label>
-                  <input
-                    type="text"
-                    value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="e.g. Coimbatore"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    State *
-                  </label>
-                  <input
-                    type="text"
-                    value={stateName}
-                    onChange={(e) => setStateName(e.target.value)}
-                    placeholder="e.g. Tamil Nadu"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    PIN Code (6 Digits)
-                  </label>
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={pincode}
-                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-                    placeholder="e.g. 641001"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  PIN Code (6 Digits)
+                </label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 641001"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                />
               </div>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Card Footer / Navigation */}
+      <div className="p-6 border-t border-slate-800 flex items-center justify-between bg-slate-950">
+        <div>
+          {step > 1 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+              className="text-xs text-slate-400 hover:text-slate-200"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Previous Step
+            </Button>
           )}
         </div>
 
-        {/* Modal Footer / Navigation */}
-        <div className="p-5 border-t border-slate-800 flex items-center justify-between bg-slate-950/60">
-          <div>
-            {step > 1 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
-                className="text-xs text-slate-400 hover:text-slate-200"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Previous Step
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {step < 3 ? (
-              <Button
-                size="sm"
-                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3)}
-                className="text-xs"
-              >
-                Continue
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={handleSave}
-                isLoading={isSaving}
-                className="text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
-              >
-                <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                Save & Complete Setup
-              </Button>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          {step < 3 ? (
+            <Button
+              size="sm"
+              onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3)}
+              className="text-xs"
+            >
+              Continue
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={handleSave}
+              isLoading={isSaving}
+              className="text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1.5" />
+              Save & Complete Setup
+            </Button>
+          )}
         </div>
       </div>
     </div>

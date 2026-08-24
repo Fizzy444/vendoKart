@@ -28,10 +28,7 @@ import {
   MapPin,
   Users,
   Layers,
-  Clock,
   IndianRupee,
-  Navigation,
-  ChevronRight,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -87,7 +84,7 @@ export default function DashboardPage() {
   if (!user) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 sm:p-12 min-h-[70vh]">
-        <Card className="max-w-md w-full text-center p-8 space-y-5 bg-slate-900/90 border-slate-800 shadow-2xl">
+        <Card className="max-w-md w-full text-center p-8 space-y-5 bg-slate-900 border-slate-800 shadow-2xl">
           <div className="w-14 h-14 rounded-2xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20">
             <Lock className="w-7 h-7" />
           </div>
@@ -216,11 +213,11 @@ export default function DashboardPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setIsWizardOpen(true)}
+              onClick={() => setIsWizardOpen(!isWizardOpen)}
               className="text-xs border-artisan-500/40 text-artisan-300 hover:bg-artisan-500/10"
             >
               <Edit3 className="w-3.5 h-3.5 mr-1" />
-              Edit Studio Profile
+              {isWizardOpen ? "Close Editor" : "Edit Studio Profile"}
             </Button>
           )}
 
@@ -231,8 +228,22 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. Onboarding Prompt Banner (If seller hasn't completed full studio setup) */}
-      {activeTab === "seller" && sellerProfile && !sellerProfile.is_onboarded && (
+      {/* 2. Inline Studio Configuration Card (When Editing or Setting Up Profile) */}
+      {activeTab === "seller" && isWizardOpen && (
+        <SellerProfileWizard
+          initialProfile={sellerProfile}
+          isOpen={isWizardOpen}
+          onClose={() => setIsWizardOpen(false)}
+          onSuccess={(updated) => {
+            setSellerProfile(updated);
+            refreshUser();
+            setIsWizardOpen(false);
+          }}
+        />
+      )}
+
+      {/* 3. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
+      {activeTab === "seller" && sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && (
         <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
@@ -248,7 +259,7 @@ export default function DashboardPage() {
               Complete your Artisan Studio & Workspace Profile
             </h3>
             <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              Define your craft specialty, active workers, labor wage, and capture GPS coordinates to unlock verified status and deterministic pricing.
+              Define your craft specialty, active workers, labor wage, and capture workshop address to unlock verified status and deterministic pricing.
             </p>
           </div>
           <Button
@@ -261,9 +272,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 3. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
-      {activeTab === "seller" && sellerProfile && (
-        <Card className="p-6 sm:p-8 bg-slate-900/80 border-slate-800 shadow-xl space-y-6">
+      {/* 4. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
+      {activeTab === "seller" && sellerProfile && !isWizardOpen && (
+        <Card className="p-6 sm:p-8 bg-slate-900 border-slate-800 shadow-xl space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
@@ -389,7 +400,7 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* 4. Action Cards (Core Stage Modules) */}
+      {/* 5. Action Cards (Core Stage Modules) */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-artisan-400" />
@@ -517,7 +528,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* 5. Footer Help & Status */}
+      {/* 6. Footer Help & Status */}
       <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -527,17 +538,6 @@ export default function DashboardPage() {
           vendoKart • AI Virtual Business Manager for Traditional Artisans
         </span>
       </div>
-
-      {/* Seller Profile & Workspace Setup Wizard Modal */}
-      <SellerProfileWizard
-        initialProfile={sellerProfile}
-        isOpen={isWizardOpen}
-        onClose={() => setIsWizardOpen(false)}
-        onSuccess={(updated) => {
-          setSellerProfile(updated);
-          refreshUser();
-        }}
-      />
     </div>
   );
 }
