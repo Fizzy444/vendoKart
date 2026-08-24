@@ -1,7 +1,9 @@
 import React from 'react';
 import { useSearch } from './hooks/useSearch';
+import { useChat } from './hooks/useChat';
 import SearchBox from './components/search/SearchBox';
 import SearchResults from './components/search/SearchResults';
+import ChatBox from './components/chat/ChatBox';
 
 export default function App() {
   const {
@@ -22,6 +24,22 @@ export default function App() {
     handleKeyDown,
   } = useSearch();
 
+  const {
+    isOpen: isChatOpen,
+    isMinimized: isChatMinimized,
+    currentProduct: chatProduct,
+    messages: chatMessages,
+    isSellerTyping,
+    unreadCount: chatUnreadCount,
+    openChatWithProduct,
+    closeChat,
+    toggleMinimize: toggleChatMinimize,
+    sendMessage: sendChatMessage,
+    sendQuickAction: sendChatQuickAction,
+    handleAcceptQuote,
+    handleNegotiateQuote,
+  } = useChat();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-orange-50/40 via-white to-gray-50 flex flex-col">
       {/* Top Navigation Bar */}
@@ -41,7 +59,7 @@ export default function App() {
                 </span>
               </div>
               <p className="text-[11px] text-gray-400 hidden sm:block">
-                Buyer Search & RAG AI Module
+                Buyer Search, RAG AI & Inbuilt Seller Chat
               </p>
             </div>
           </div>
@@ -55,7 +73,7 @@ export default function App() {
               href="#docs"
               onClick={(e) => {
                 e.preventDefault();
-                alert('vendoKart Buyer Search & RAG Integration\nBranch: branch-muthu\nEndpoints:\n- GET /api/autocomplete?q=...\n- POST /api/search');
+                alert('vendoKart Buyer Search, RAG & Inbuilt Chat\nBranch: branch-muthu\nFeatures:\n- Semantic / NL Search\n- Instant Autocomplete\n- Buyer-to-Seller Direct Chat & Quotes');
               }}
               className="text-xs font-semibold text-gray-600 hover:text-brand-600 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors"
             >
@@ -73,7 +91,7 @@ export default function App() {
           </h1>
           <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto">
             Find unique handcrafted items directly from certified micro-entrepreneurs and weavers.
-            Search by item or specify your exact budget, quantity, and lead time in plain English.
+            Search by item, specify constraints, or chat directly with artisans for custom orders.
           </p>
         </div>
 
@@ -104,9 +122,26 @@ export default function App() {
               setQuery(q);
               executeSearch(q);
             }}
+            onChatWithSeller={openChatWithProduct}
           />
         </div>
       </main>
+
+      {/* Inbuilt Buyer-to-Seller Chat Box */}
+      <ChatBox
+        isOpen={isChatOpen}
+        isMinimized={isChatMinimized}
+        product={chatProduct}
+        messages={chatMessages}
+        isTyping={isSellerTyping}
+        unreadCount={chatUnreadCount}
+        onClose={closeChat}
+        onToggleMinimize={toggleChatMinimize}
+        onSendMessage={sendChatMessage}
+        onQuickAction={sendChatQuickAction}
+        onAcceptQuote={handleAcceptQuote}
+        onNegotiateQuote={handleNegotiateQuote}
+      />
 
       {/* Footer */}
       <footer className="mt-auto border-t border-gray-100 bg-white py-8">

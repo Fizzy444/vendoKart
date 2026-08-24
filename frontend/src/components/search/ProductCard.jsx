@@ -7,7 +7,7 @@ import React, { useState } from 'react';
  * @param {Object} props
  * @param {import('../../types/search').Product} props.product
  */
-export default function ProductCard({ product }) {
+export default function ProductCard({ product, onChatWithSeller }) {
   const [imageError, setImageError] = useState(false);
 
   const {
@@ -94,7 +94,8 @@ export default function ProductCard({ product }) {
             <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
             </svg>
-            <span className="truncate">{seller_name || 'Verified Artisan'}</span>
+            <span className="truncate font-semibold text-gray-900">{seller_name || 'Verified Artisan'}</span>
+            <span className="text-[10px] text-blue-600 font-bold" title="Verified Artisan">✓</span>
           </div>
 
           <div className="flex items-center justify-between text-[11px] text-gray-500">
@@ -115,17 +116,24 @@ export default function ProductCard({ product }) {
         </div>
       </div>
 
-      {/* Action CTA */}
-      <button
-        type="button"
-        onClick={() => alert(`Selected Product: ${name}\nSeller: ${seller_name}\nPrice: ₹${price}`)}
-        className="w-full py-2.5 px-4 bg-brand-50 hover:bg-brand-500 text-brand-700 hover:text-white rounded-xl text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 shadow-2xs group-hover:bg-brand-500 group-hover:text-white"
-      >
-        <span>View Product Details</span>
-        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
+      {/* Action CTA Buttons */}
+      <div className="grid grid-cols-2 gap-2 mt-auto">
+        <button
+          type="button"
+          onClick={() => alert(`Product: ${name}\nSeller: ${seller_name}\nPrice: ₹${price}\nStock: ${stock}\nLead time: ${manufacturing_days} days`)}
+          className="py-2 px-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+        >
+          <span>View Product</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onChatWithSeller && onChatWithSeller(product)}
+          className="py-2 px-3 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl text-xs font-semibold transition-all duration-150 flex items-center justify-center gap-1.5 shadow-2xs"
+        >
+          <span>💬 Chat with Seller</span>
+        </button>
+      </div>
     </div>
   );
 }

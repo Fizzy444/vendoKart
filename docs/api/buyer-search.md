@@ -172,3 +172,40 @@ frontend/src/
 
 1. **No Fictional Data**: The frontend never hardcodes or hallucinates product listings. All data originates strictly from the backend seller dataset.
 2. **Strict Negatives**: When query items do not exist in the catalog, the UI displays `Product Not Available` and never recommends irrelevant items.
+
+---
+
+## 6. Inbuilt Buyer-to-Seller Chat Box Architecture
+
+The Inbuilt Chat enables direct buyer-seller negotiation and customization inquiries without navigating to external applications (e.g. WhatsApp, Telegram).
+
+### Component Tree
+```
+frontend/src/components/chat/
+├── ChatBox.jsx         # Docked floating container with minimized badge state
+├── ChatHeader.jsx      # Seller profile, verification badge (✓), online indicator
+├── ProductContext.jsx  # Pinned header showing the specific product under discussion
+├── MessageList.jsx     # Bubble stream, timestamps, typing indicator, quote cards
+├── MessageInput.jsx    # Text input, file attachment, quick action prompt chips
+└── QuoteCard.jsx       # Interactive formal quotation card with Accept / Negotiate
+```
+
+### Quick Action Types
+- `CUSTOMIZATION`: "Can you customize this product with different colors or sizes?"
+- `QUOTE`: "I would like to request an official quote for 20 units."
+- `DELIVERY`: "What is the earliest manufacturing and delivery date?"
+- `SEND_PRODUCT`: Shares active product card into the message stream.
+
+### Structured Quote Card Contract
+```typescript
+interface QuoteData {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  productionDays: number;
+  status: 'pending' | 'accepted' | 'negotiating';
+}
+```
+
