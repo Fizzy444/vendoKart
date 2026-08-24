@@ -44,14 +44,6 @@ export default function NoResults({ query, onSuggestClick }) {
         Try adjusting your budget, quantity, or searching for a different handcrafted category.
       </p>
 
-      {/* Grounding guarantee callout */}
-      <div className="bg-amber-50/60 rounded-xl p-3.5 mb-8 border border-amber-200/60 text-left flex items-start gap-3">
-        <span className="text-base flex-shrink-0">🛡️</span>
-        <div className="text-xs text-amber-900 leading-relaxed">
-          <strong className="font-semibold">RAG Grounding Guarantee:</strong> Our AI search only returns verified products present in the active seller catalog and will never recommend unrelated substitute items.
-        </div>
-      </div>
-
       {/* Suggested available categories */}
       <div>
         <span className="text-xs font-semibold uppercase tracking-wider text-gray-400 block mb-3">

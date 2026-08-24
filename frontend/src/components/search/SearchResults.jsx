@@ -40,7 +40,7 @@ export default function SearchResults({
           Finding matching products...
         </h3>
         <p className="text-xs text-gray-500 max-w-sm mx-auto">
-          Querying the RAG semantic search engine and checking seller inventory & lead times...
+          Checking seller inventory and lead times...
         </p>
 
         {/* Skeleton cards */}
@@ -119,7 +119,7 @@ export default function SearchResults({
           <div className="bg-white rounded-2xl p-4 sm:p-5 border border-brand-100 shadow-sm mb-6 flex items-start gap-3.5">
             <span className="text-2xl flex-shrink-0">💬</span>
             <div className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-              <strong className="font-semibold text-gray-900 block mb-0.5">AI Search Assistant:</strong>
+              <strong className="font-semibold text-gray-900 block mb-0.5">Search Summary:</strong>
               {answer}
             </div>
           </div>

@@ -58,28 +58,10 @@ export default function App() {
                   Artisan Marketplace
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400 hidden sm:block">
-                Buyer Search, RAG AI & Inbuilt Seller Chat
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex items-center gap-1 text-xs text-gray-500 bg-gray-100/80 px-3 py-1.5 rounded-full border border-gray-200/60">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              <span>RAG Engine: Active</span>
-            </div>
-            <a
-              href="#docs"
-              onClick={(e) => {
-                e.preventDefault();
-                alert('vendoKart Buyer Search, RAG & Inbuilt Chat\nFeatures:\n- Semantic / NL Search\n- Instant Autocomplete\n- Buyer-to-Seller Direct Chat & Quotes');
-              }}
-              className="text-xs font-semibold text-gray-600 hover:text-brand-600 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors"
-            >
-              API Docs
-            </a>
-          </div>
+          <div className="flex items-center gap-3"></div>
         </div>
       </header>
 
@@ -150,9 +132,6 @@ export default function App() {
             <span className="font-semibold text-gray-700">vendoKart</span>
             <span>•</span>
             <span>Empowering micro-entrepreneurs & artisans</span>
-          </div>
-          <div>
-            <span>Grounded RAG Search UI</span>
           </div>
         </div>
       </footer>

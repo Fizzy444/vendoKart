@@ -24,9 +24,6 @@ export default function RequirementsCard({ requirements }) {
         <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-orange-900">
           Extracted Search Requirements
         </h3>
-        <span className="ml-auto text-[11px] text-orange-600 font-medium bg-orange-100/80 px-2 py-0.5 rounded-md">
-          AI Interpreted
-        </span>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
