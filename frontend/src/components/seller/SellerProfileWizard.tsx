@@ -12,7 +12,6 @@ import {
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import {
   Hammer,
   Sparkles,
@@ -27,8 +26,6 @@ import {
   Navigation,
   Layers,
   Check,
-  Search,
-  Crosshair,
 } from "lucide-react";
 
 interface SellerProfileWizardProps {
@@ -109,50 +106,6 @@ const WORKSPACE_TYPES: { label: string; value: WorkspaceType; desc: string }[] =
   },
 ];
 
-// Helper to parse either DMS coordinates (11°03'35.5"N 76°55'56.7"E) or Decimals (11.059861, 76.932417)
-function parseCoordinateInput(input: string): { lat: number; lon: number } | null {
-  const clean = input.trim();
-  if (!clean) return null;
-
-  // 1. DMS Regex: e.g. 11°03'35.5"N 76°55'56.7"E or 11° 3' 35.5" N, 76° 55' 56.7" E
-  const dmsRegex =
-    /(\d+)\s*°\s*(\d+)\s*['\u2032]?\s*([\d.]+)\s*["\u2033]?\s*([NSEWnsew])\s*[, ]\s*(\d+)\s*°\s*(\d+)\s*['\u2032]?\s*([\d.]+)\s*["\u2033]?\s*([NSEWnsew])/;
-  const dmsMatch = clean.match(dmsRegex);
-  if (dmsMatch) {
-    let lat =
-      parseInt(dmsMatch[1], 10) +
-      parseInt(dmsMatch[2], 10) / 60 +
-      parseFloat(dmsMatch[3]) / 3600;
-    if (dmsMatch[4].toUpperCase() === "S") lat = -lat;
-
-    let lon =
-      parseInt(dmsMatch[5], 10) +
-      parseInt(dmsMatch[6], 10) / 60 +
-      parseFloat(dmsMatch[7]) / 3600;
-    if (dmsMatch[8].toUpperCase() === "W") lon = -lon;
-
-    return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) };
-  }
-
-  // 2. Decimal: e.g. 11.059861, 76.932417 or 11.059861 76.932417
-  const decRegex = /([-+]?\d{1,2}(?:\.\d+)?)[,\s]+([-+]?\d{1,3}(?:\.\d+)?)/;
-  const decMatch = clean.match(decRegex);
-  if (decMatch) {
-    const lat = parseFloat(decMatch[1]);
-    const lon = parseFloat(decMatch[2]);
-    if (
-      !isNaN(lat) &&
-      !isNaN(lon) &&
-      Math.abs(lat) <= 90 &&
-      Math.abs(lon) <= 180
-    ) {
-      return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) };
-    }
-  }
-
-  return null;
-}
-
 export function SellerProfileWizard({
   initialProfile,
   isOpen,
@@ -202,14 +155,13 @@ export function SellerProfileWizard({
     initialProfile?.lead_time_days ?? 3
   );
 
-  // Form State - Step 3: Location
+  // Form State - Step 3: Location (Coordinates kept internally in state for backend verification)
   const [latitude, setLatitude] = useState<number | undefined>(
     initialProfile?.location?.latitude
   );
   const [longitude, setLongitude] = useState<number | undefined>(
     initialProfile?.location?.longitude
   );
-  const [customCoordsInput, setCustomCoordsInput] = useState<string>("");
   const [address, setAddress] = useState(initialProfile?.location?.address || "");
   const [city, setCity] = useState(initialProfile?.location?.city || "");
   const [district, setDistrict] = useState(initialProfile?.location?.district || "");
@@ -245,104 +197,7 @@ export function SellerProfileWizard({
 
   if (!isOpen) return null;
 
-  // Unified reverse-geocoding engine for Indian coordinates
-  const performReverseGeocode = async (lat: number, lon: number) => {
-    setIsLocating(true);
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
-        {
-          headers: {
-            "Accept-Language": "en",
-          },
-        }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const addr = data.address || {};
-        const displayName = data.display_name || "";
-
-        const detectedState = addr.state || "";
-        const detectedPincode = addr.postcode
-          ? addr.postcode.replace(/\D/g, "").slice(0, 6)
-          : "";
-
-        const detectedCity =
-          addr.city ||
-          addr.town ||
-          addr.municipality ||
-          addr.village ||
-          addr.city_district ||
-          addr.suburb ||
-          "";
-
-        const detectedDistrict =
-          addr.state_district ||
-          addr.district ||
-          addr.county ||
-          detectedCity ||
-          "";
-
-        // Build rich, complete street/locality address
-        const localKeys = [
-          "house_number",
-          "building",
-          "house_name",
-          "road",
-          "street",
-          "neighbourhood",
-          "residential",
-          "suburb",
-          "city_district",
-          "county",
-          "village",
-          "hamlet",
-        ];
-
-        const parts: string[] = [];
-        const seen = new Set<string>();
-
-        for (const key of localKeys) {
-          const val = addr[key];
-          if (
-            val &&
-            !seen.has(val.toLowerCase()) &&
-            val.toLowerCase() !== detectedCity.toLowerCase() &&
-            val.toLowerCase() !== detectedState.toLowerCase()
-          ) {
-            seen.add(val.toLowerCase());
-            parts.push(val);
-          }
-        }
-
-        let detectedStreet = parts.join(", ");
-
-        if (!detectedStreet || detectedStreet.length < 4) {
-          const rawParts = displayName.split(",").map((p: string) => p.trim());
-          const filtered = rawParts.filter(
-            (p: string) =>
-              p.toLowerCase() !== detectedState.toLowerCase() &&
-              p.toLowerCase() !== "india" &&
-              p !== detectedPincode
-          );
-          detectedStreet =
-            filtered.slice(0, 3).join(", ") || displayName.split(",")[0] || "";
-        }
-
-        if (detectedStreet) setAddress(detectedStreet);
-        if (detectedCity) setCity(detectedCity);
-        if (detectedDistrict) setDistrict(detectedDistrict);
-        if (detectedState) setStateName(detectedState);
-        if (detectedPincode) setPincode(detectedPincode);
-      }
-    } catch (err) {
-      console.warn("Reverse geocode error:", err);
-    } finally {
-      setIsLocating(false);
-    }
-  };
-
-  // Browser Geolocation capture
+  // Browser Geolocation capture & clean reverse geocoding
   const handleCaptureLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
@@ -355,7 +210,99 @@ export function SellerProfileWizard({
         const lon = Number(pos.coords.longitude.toFixed(6));
         setLatitude(lat);
         setLongitude(lon);
-        await performReverseGeocode(lat, lon);
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+            {
+              headers: {
+                "Accept-Language": "en",
+              },
+            }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const addr = data.address || {};
+            const displayName = data.display_name || "";
+
+            const detectedState = addr.state || "";
+            const detectedPincode = addr.postcode
+              ? addr.postcode.replace(/\D/g, "").slice(0, 6)
+              : "";
+
+            const detectedCity =
+              addr.city ||
+              addr.town ||
+              addr.municipality ||
+              addr.village ||
+              addr.city_district ||
+              addr.suburb ||
+              "";
+
+            const detectedDistrict =
+              addr.state_district ||
+              addr.district ||
+              addr.county ||
+              detectedCity ||
+              "";
+
+            // Build rich, clean street address
+            const localKeys = [
+              "house_number",
+              "building",
+              "house_name",
+              "road",
+              "street",
+              "neighbourhood",
+              "residential",
+              "suburb",
+              "city_district",
+              "county",
+              "village",
+              "hamlet",
+            ];
+
+            const parts: string[] = [];
+            const seen = new Set<string>();
+
+            for (const key of localKeys) {
+              const val = addr[key];
+              if (
+                val &&
+                !seen.has(val.toLowerCase()) &&
+                val.toLowerCase() !== detectedCity.toLowerCase() &&
+                val.toLowerCase() !== detectedState.toLowerCase()
+              ) {
+                seen.add(val.toLowerCase());
+                parts.push(val);
+              }
+            }
+
+            let detectedStreet = parts.join(", ");
+
+            if (!detectedStreet || detectedStreet.length < 4) {
+              const rawParts = displayName.split(",").map((p: string) => p.trim());
+              const filtered = rawParts.filter(
+                (p: string) =>
+                  p.toLowerCase() !== detectedState.toLowerCase() &&
+                  p.toLowerCase() !== "india" &&
+                  p !== detectedPincode
+              );
+              detectedStreet =
+                filtered.slice(0, 3).join(", ") || displayName.split(",")[0] || "";
+            }
+
+            if (detectedStreet) setAddress(detectedStreet);
+            if (detectedCity) setCity(detectedCity);
+            if (detectedDistrict) setDistrict(detectedDistrict);
+            if (detectedState) setStateName(detectedState);
+            if (detectedPincode) setPincode(detectedPincode);
+          }
+        } catch (err) {
+          console.warn("Reverse geocode error:", err);
+        } finally {
+          setIsLocating(false);
+        }
       },
       (err) => {
         setIsLocating(false);
@@ -363,28 +310,6 @@ export function SellerProfileWizard({
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
-  };
-
-  // Manual Coordinate / DMS lookup handler
-  const handleLookupCustomCoords = async () => {
-    if (!customCoordsInput.trim()) {
-      if (latitude && longitude) {
-        await performReverseGeocode(latitude, longitude);
-      }
-      return;
-    }
-
-    const parsed = parseCoordinateInput(customCoordsInput);
-    if (!parsed) {
-      alert(
-        "Could not parse coordinates. Please enter DMS like 11°03'35.5\"N 76°55'56.7\"E or decimals like 11.059861, 76.932417"
-      );
-      return;
-    }
-
-    setLatitude(parsed.lat);
-    setLongitude(parsed.lon);
-    await performReverseGeocode(parsed.lat, parsed.lon);
   };
 
   const handleSave = async () => {
@@ -508,7 +433,7 @@ export function SellerProfileWizard({
             <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
               3
             </span>
-            Location & Presence
+            Workshop Location
           </button>
         </div>
 
@@ -756,108 +681,44 @@ export function SellerProfileWizard({
             </div>
           )}
 
-          {/* STEP 3: LOCATION & PRESENCE */}
+          {/* STEP 3: WORKSHOP LOCATION & PRESENCE */}
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in duration-200">
-              {/* Option A: 1-Click Device GPS */}
+              {/* 1-Click GPS Auto-Fill Banner */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <div>
+                <div className="space-y-1">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                    <Navigation className="w-4 h-4 text-artisan-400" />
-                    <span>Device GPS Auto-Capture</span>
+                    <MapPin className="w-4 h-4 text-artisan-400" />
+                    <span>Auto-detect Workshop Address from GPS</span>
                   </div>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    {latitude && longitude
-                      ? `Active Pin: ${latitude}, ${longitude}`
-                      : "Capture your device's current location via browser."}
+                  <p className="text-[11px] text-slate-400">
+                    Click to automatically fill your studio street, city, state, and PIN code.
                   </p>
                 </div>
                 <Button
                   type="button"
                   size="sm"
-                  variant="outline"
+                  variant="primary"
                   onClick={handleCaptureLocation}
                   disabled={isLocating}
-                  className="shrink-0 text-xs"
+                  className="shrink-0 text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
                 >
-                  <Crosshair className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
-                  {isLocating ? "Detecting..." : "Detect Device GPS"}
+                  <Navigation className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
+                  {isLocating ? "Detecting Address..." : "Detect Workshop Location"}
                 </Button>
               </div>
 
-              {/* Option B: Precision DMS or Decimal Paste & Reverse Geocode */}
-              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-                    <Search className="w-3.5 h-3.5 text-ochre-400" />
-                    Paste Exact Coordinates or DMS
-                  </label>
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    e.g. 11°03&apos;35.5&quot;N 76°55&apos;56.7&quot;E
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customCoordsInput}
-                    onChange={(e) => setCustomCoordsInput(e.target.value)}
-                    placeholder='Paste e.g. 11°03&apos;35.5"N 76°55&apos;56.7"E or 11.059861, 76.932417'
-                    className="flex-1 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 font-mono"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={handleLookupCustomCoords}
-                    disabled={isLocating}
-                    className="shrink-0 text-xs"
-                  >
-                    <Search className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
-                    {isLocating ? "Locating..." : "Pin & Auto-Fill"}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Decimal Coordinates Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    Latitude
-                  </label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={latitude ?? ""}
-                    onChange={(e) => setLatitude(parseFloat(e.target.value) || undefined)}
-                    placeholder="11.059861"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
-                    Longitude
-                  </label>
-                  <input
-                    type="number"
-                    step="0.000001"
-                    value={longitude ?? ""}
-                    onChange={(e) => setLongitude(parseFloat(e.target.value) || undefined)}
-                    placeholder="76.932417"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-              </div>
-
-              {/* Live Address Confirmation Pill */}
-              {latitude && city && (
+              {/* Status Badge upon successful detection */}
+              {city && stateName && (
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
-                  <Check className="w-4 h-4 shrink-0" />
+                  <Check className="w-4 h-4 shrink-0 text-emerald-400" />
                   <span>
-                    <strong>Auto-detected Address:</strong> {city}, {stateName} ({pincode || "PIN"})
+                    <strong>Location Verified:</strong> {city}, {stateName} {pincode ? `(${pincode})` : ""}
                   </span>
                 </div>
               )}
 
-              {/* Editable Street / Workshop Address */}
+              {/* Workshop Street Address */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Workshop / Studio Street Address
@@ -866,7 +727,7 @@ export function SellerProfileWizard({
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Ward 3, North Zone, Coimbatore North"
+                  placeholder="e.g. Ward 3, North Zone, Near River Bank"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
               </div>
