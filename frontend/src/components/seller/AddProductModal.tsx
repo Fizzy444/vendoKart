@@ -509,26 +509,26 @@ export function AddProductModal({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div>
                 <span className="text-[11px] text-slate-400">Unit Labour Cost:</span>
-                <p className="font-bold text-slate-200 mt-0.5">₹{unitLabourCost.toFixed(0)}</p>
-                <span className="text-[9px] text-slate-500">(₹{labourRate} / {dailyCapacity} units)</span>
+                <p className="font-bold text-slate-200 mt-0.5">₹{unitLabourCost.toFixed(0)} / piece</p>
+                <span className="text-[9px] text-slate-500">(₹{labourRate}/day ÷ {dailyCapacity} units)</span>
               </div>
 
               <div>
-                <span className="text-[11px] text-slate-400">Total Production Cost:</span>
-                <p className="font-bold text-slate-200 mt-0.5">₹{totalUnitCost}</p>
+                <span className="text-[11px] text-slate-400">Total Unit Cost:</span>
+                <p className="font-bold text-slate-200 mt-0.5">₹{totalUnitCost} / piece</p>
                 <span className="text-[9px] text-slate-500">(Material + Labour + Pkg)</span>
               </div>
 
               <div>
-                <span className="text-[11px] text-slate-400">Guaranteed Price Floor:</span>
-                <p className="font-bold text-amber-400 mt-0.5">₹{minFloorPrice}</p>
+                <span className="text-[11px] text-slate-400">Guaranteed Floor:</span>
+                <p className="font-bold text-amber-400 mt-0.5">₹{minFloorPrice} / piece</p>
                 <span className="text-[9px] text-amber-500/80">(Never sell below this)</span>
               </div>
 
               <div className="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20">
-                <span className="text-[11px] text-emerald-300 font-semibold">Recommended Listing:</span>
-                <p className="text-base font-extrabold text-emerald-400 mt-0.5">₹{recommendedPrice}</p>
-                <span className="text-[9px] text-emerald-400/80 font-medium">₹{estimatedProfit} profit / unit</span>
+                <span className="text-[11px] text-emerald-300 font-semibold">Recommended (Single Item):</span>
+                <p className="text-base font-extrabold text-emerald-400 mt-0.5">₹{recommendedPrice} <span className="text-xs font-medium text-emerald-300">/ piece</span></p>
+                <span className="text-[9px] text-emerald-400/80 font-medium">+₹{estimatedProfit} profit / piece</span>
               </div>
             </div>
           </div>
@@ -610,7 +610,7 @@ export function AddProductModal({
             className="text-xs bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-6"
           >
             <CheckCircle2 className="w-4 h-4 mr-1.5" />
-            Publish Product at ₹{recommendedPrice}
+            Publish Listing at ₹{recommendedPrice} / piece
           </Button>
         </div>
       </form>

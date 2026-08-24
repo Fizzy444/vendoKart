@@ -137,8 +137,8 @@ export function SellerProductsList({
                   )}
                 </div>
 
-                <div className="absolute bottom-3 right-3 bg-slate-950/85 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-700 text-xs font-bold text-emerald-400">
-                  ₹{product.listed_price_inr}
+                <div className="absolute bottom-3 right-3 bg-slate-950/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-slate-700 text-xs font-bold text-emerald-400">
+                  ₹{product.listed_price_inr} <span className="text-[10px] font-medium text-emerald-300">/ piece</span>
                 </div>
               </div>
 
