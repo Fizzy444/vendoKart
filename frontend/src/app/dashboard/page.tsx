@@ -9,78 +9,88 @@ import { Card } from "@/components/ui/Card";
 import {
   Hammer,
   ShoppingBag,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  User as UserIcon,
-  Phone,
-  Calendar,
-  Lock,
+  Mic,
+  Camera,
+  Calculator,
+  Package,
+  TrendingUp,
   Sparkles,
+  Phone,
+  ShieldCheck,
   Edit3,
   Save,
-  ArrowLeft,
+  CheckCircle2,
+  Lock,
+  ArrowRight,
+  LogOut,
+  Palette,
+  Heart,
+  Store,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function DashboardPage() {
   const { user, isLoading, openAuthModal, devLogin, logout, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
   const [editingProfile, setEditingProfile] = useState<boolean>(false);
   const [nameInput, setNameInput] = useState<string>("");
   const [businessInput, setBusinessInput] = useState<string>("");
   const [saveLoading, setSaveLoading] = useState<boolean>(false);
 
-  // Protected route test results
-  const [testResult, setTestResult] = useState<{
-    endpoint: string;
-    status: "success" | "error";
-    message: string;
-  } | null>(null);
-  const [testLoading, setTestLoading] = useState<boolean>(false);
-
+  // Sync active view with user's primary role
   React.useEffect(() => {
     if (user) {
       setNameInput(user.name || "");
       setBusinessInput(user.business_name || "");
+      if (user.roles.includes("buyer") && !user.roles.includes("seller")) {
+        setActiveTab("buyer");
+      } else {
+        setActiveTab("seller");
+      }
     }
   }, [user]);
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[60vh]">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-artisan-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400">Loading authenticated session...</p>
+          <p className="text-sm text-slate-400">Loading your workspace...</p>
         </div>
       </div>
     );
   }
 
+  // Logged-out state
   if (!user) {
     return (
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <Card className="max-w-md w-full text-center p-8 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 mx-auto flex items-center justify-center border border-amber-500/20">
-            <Lock className="w-6 h-6" />
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 min-h-[70vh]">
+        <Card className="max-w-md w-full text-center p-8 space-y-5 bg-slate-900/90 border-slate-800 shadow-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20">
+            <Lock className="w-7 h-7" />
           </div>
-          <h2 className="text-xl font-bold text-slate-100">Authentication Required</h2>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            You must be logged in with a verified Phone OTP to access the artisan dashboard and protected API routes.
-          </p>
+          <div>
+            <h2 className="text-2xl font-bold text-slate-100">Welcome to vendoKart</h2>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              Sign in with your mobile number to access your artisan workspace or customer dashboard.
+            </p>
+          </div>
+
           <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
-            <Button onClick={() => openAuthModal("seller")}>
-              <Hammer className="w-4 h-4 mr-1.5" />
+            <Button onClick={() => openAuthModal("seller")} className="w-full sm:w-auto">
+              <Hammer className="w-4 h-4 mr-1.5 text-artisan-300" />
               Artisan Sign In
             </Button>
-            <Button variant="secondary" onClick={() => openAuthModal("buyer")}>
-              <ShoppingBag className="w-4 h-4 mr-1.5" />
+            <Button variant="secondary" onClick={() => openAuthModal("buyer")} className="w-full sm:w-auto">
+              <ShoppingBag className="w-4 h-4 mr-1.5 text-ochre-400" />
               Buyer Sign In
             </Button>
           </div>
 
           {/* Dev Test Quick Sign In Buttons */}
-          <div className="pt-4 mt-2 border-t border-slate-800/80 space-y-2">
-            <p className="text-[11px] text-slate-500 font-medium">⚡ Dev 1-Click Testing Bypass:</p>
+          <div className="pt-4 mt-2 border-t border-slate-800 space-y-2">
+            <p className="text-[11px] text-slate-500 font-medium">⚡ Instant 1-Click Dev Testing:</p>
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               <button
                 type="button"
@@ -121,74 +131,83 @@ export default function DashboardPage() {
     }
   };
 
-  const testEndpoint = async (type: "seller" | "buyer" | "me") => {
-    setTestLoading(true);
-    setTestResult(null);
-    try {
-      let res;
-      if (type === "seller") {
-        res = await api.testSellerRoute();
-      } else if (type === "buyer") {
-        res = await api.testBuyerRoute();
-      } else {
-        res = await api.getMe();
-      }
-      setTestResult({
-        endpoint: `/api/v1/auth/${type === "me" ? "me" : type + "-only"}`,
-        status: "success",
-        message: JSON.stringify(res, null, 2),
-      });
-    } catch (err: any) {
-      setTestResult({
-        endpoint: `/api/v1/auth/${type === "me" ? "me" : type + "-only"}`,
-        status: "error",
-        message: err.message || "Request rejected with 403 Forbidden or 401 Unauthorized",
-      });
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  const isSeller = user.roles.includes("seller") || user.roles.includes("admin");
+  const displayName = user.business_name || user.name || (activeTab === "seller" ? "Master Artisan" : "Craft Collector");
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-8 border-b border-slate-800">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-              {user.business_name || user.name || "Artisan Dashboard"}
-            </h1>
-            <Badge variant="primary" size="md">
-              <CheckCircle2 className="w-3 h-3 text-artisan-400 mr-1" />
-              OTP Verified
-            </Badge>
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+      {/* 1. Header & Greeting Banner */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-slate-900 via-slate-900 to-artisan-950/40 border border-slate-800 shadow-xl relative overflow-hidden">
+        {/* Glow accent */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-artisan-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-artisan-500/20 text-artisan-300 border border-artisan-500/30">
+              {activeTab === "seller" ? "🎨 Seller Studio" : "🛍️ Buyer Marketplace"}
+            </span>
+            <span className="text-xs text-slate-400 flex items-center gap-1">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              Verified OTP Account
+            </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-            <Phone className="w-3.5 h-3.5" /> {user.phone} • Registered:{" "}
-            {new Date(user.created_at).toLocaleDateString()}
+
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
+            Namaste, {displayName}!
+          </h1>
+
+          <p className="text-xs text-slate-400 flex items-center gap-2">
+            <Phone className="w-3.5 h-3.5 text-slate-500" /> {user.phone}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* View Switcher & Action Buttons */}
+        <div className="relative z-10 flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+          {/* Toggle between Seller and Buyer Views */}
+          <div className="p-1 bg-slate-950 rounded-xl border border-slate-800 flex">
+            <button
+              onClick={() => setActiveTab("seller")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                activeTab === "seller"
+                  ? "bg-artisan-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <Hammer className="w-3.5 h-3.5" />
+              Seller View
+            </button>
+            <button
+              onClick={() => setActiveTab("buyer")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                activeTab === "buyer"
+                  ? "bg-ochre-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              Buyer View
+            </button>
+          </div>
+
           <Button
             variant="outline"
             size="sm"
             onClick={() => setEditingProfile(!editingProfile)}
+            className="text-xs"
           >
             <Edit3 className="w-3.5 h-3.5 mr-1" />
             {editingProfile ? "Cancel" : "Edit Profile"}
           </Button>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400">
+
+          <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-red-400 hover:text-red-300">
+            <LogOut className="w-3.5 h-3.5 mr-1" />
             Sign Out
           </Button>
         </div>
       </div>
 
-      {/* Edit Profile Form */}
+      {/* Profile Edit Drawer */}
       {editingProfile && (
-        <Card className="my-6 border-artisan-500/30 bg-slate-900/90">
+        <Card className="p-6 bg-slate-900/95 border-artisan-500/30 shadow-lg animate-in fade-in duration-200">
           <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
             <Edit3 className="w-4 h-4 text-artisan-400" />
             Update Profile Information
@@ -200,8 +219,8 @@ export default function DashboardPage() {
                 type="text"
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
-                placeholder="e.g. Madhavan Nair"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
+                placeholder="e.g. Ramesh Kumar"
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
               />
             </div>
             <div>
@@ -210,155 +229,211 @@ export default function DashboardPage() {
                 type="text"
                 value={businessInput}
                 onChange={(e) => setBusinessInput(e.target.value)}
-                placeholder="e.g. Kerala Teak Handcrafts"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
+                placeholder="e.g. Silk Weavers Collective"
+                className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
               />
             </div>
           </div>
           <div className="mt-4 flex justify-end">
             <Button size="sm" onClick={handleSaveProfile} isLoading={saveLoading}>
-              <Save className="w-4 h-4 mr-1" />
+              <Save className="w-4 h-4 mr-1.5" />
               Save Changes
             </Button>
           </div>
         </Card>
       )}
 
-      {/* User Details & Stage 0 Verification Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-        {/* Profile Card */}
-        <Card variant="glow" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-              Account Identity
-            </h3>
-            <div className="w-8 h-8 rounded-lg bg-artisan-500/10 text-artisan-400 flex items-center justify-center">
-              {isSeller ? <Hammer className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-            </div>
-          </div>
-
-          <div className="space-y-2.5 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">User ID:</span>
-              <span className="text-slate-300 font-mono text-[11px] truncate max-w-[160px]">
-                {user.id}
-              </span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Phone:</span>
-              <span className="text-slate-200 font-medium font-mono">{user.phone}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Roles:</span>
-              <div className="flex gap-1">
-                {user.roles.map((r) => (
-                  <Badge key={r} variant="primary" size="sm">
-                    {r}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Account Status:</span>
-              <Badge variant="success" size="sm">
-                {user.status}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-
-        {/* Live RBAC Guardrail Tester */}
-        <Card variant="glow" className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                Stage 0 Protected Route Verification
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Hit backend endpoints with current JWT Bearer token to test role-based access control.
+      {/* 2. Key Stats Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {activeTab === "seller" ? (
+          <>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Total Products</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
+              <span className="text-[11px] text-artisan-400 mt-0.5 block">Ready to publish</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Pending Orders</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
+              <span className="text-[11px] text-amber-400 mt-0.5 block">0 to fulfill today</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Total Revenue</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">₹0.00</p>
+              <span className="text-[11px] text-emerald-400 mt-0.5 block">Direct bank payouts</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">AI Assistant</span>
+              <p className="text-2xl font-extrabold text-emerald-400 mt-1 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                Online
               </p>
-            </div>
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-          </div>
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testEndpoint("me")}
-              disabled={testLoading}
-            >
-              Test GET /api/v1/auth/me
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => testEndpoint("seller")}
-              disabled={testLoading}
-            >
-              <Hammer className="w-3.5 h-3.5 mr-1 text-artisan-400" />
-              Test /seller-only (Guarded)
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => testEndpoint("buyer")}
-              disabled={testLoading}
-            >
-              <ShoppingBag className="w-3.5 h-3.5 mr-1 text-ochre-400" />
-              Test /buyer-only (Guarded)
-            </Button>
-          </div>
-
-          {/* Test Output Console */}
-          {testResult && (
-            <div
-              className={`p-4 rounded-xl font-mono text-xs border ${
-                testResult.status === "success"
-                  ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
-                  : "bg-red-950/30 border-red-500/30 text-red-300"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5 font-bold">
-                <span>{testResult.endpoint}</span>
-                <span>{testResult.status.toUpperCase()}</span>
-              </div>
-              <pre className="whitespace-pre-wrap overflow-x-auto text-[11px]">
-                {testResult.message}
-              </pre>
-            </div>
-          )}
-        </Card>
+              <span className="text-[11px] text-slate-400 mt-0.5 block">Voice & Photo ready</span>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Cart Items</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
+              <span className="text-[11px] text-ochre-400 mt-0.5 block">Items saved</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Active Shipments</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
+              <span className="text-[11px] text-emerald-400 mt-0.5 block">In transit</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Artisans Supported</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">100%</p>
+              <span className="text-[11px] text-emerald-400 mt-0.5 block">Fair trade certified</span>
+            </Card>
+            <Card className="p-4 bg-slate-900/60 border-slate-800">
+              <span className="text-xs text-slate-400">Saved Favorites</span>
+              <p className="text-2xl font-extrabold text-slate-100 mt-1">0</p>
+              <span className="text-[11px] text-pink-400 mt-0.5 block">Wishlist crafts</span>
+            </Card>
+          </>
+        )}
       </div>
 
-      {/* Next Stages Roadmap Card */}
-      <div className="mt-8">
-        <Card className="bg-slate-900/60 border-slate-800 p-6">
-          <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-artisan-400" />
-            Upcoming Architectural Modules
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-artisan-400 block mb-1">Stage 1: Seller Core</span>
-              <p className="text-slate-400">
-                Product creation, manual attributes, and the pure math Deterministic Pricing Engine (§11).
+      {/* 3. Action Cards (Core Capabilities) */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-artisan-400" />
+          {activeTab === "seller" ? "Artisan Business Manager Modules" : "Discover & Shop Handcrafted Heritage"}
+        </h2>
+
+        {activeTab === "seller" ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Voice Cataloging */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
+                  <Mic className="w-6 h-6" />
+                </div>
+                <Badge variant="primary" size="sm">Voice AI</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-artisan-300 transition-colors">
+                1. Voice-to-Catalog Listing
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Describe your craft in Hindi, Tamil, Bengali, or English. AI automatically transcribes specifications, story, and attributes.
               </p>
-            </div>
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-ochre-400 block mb-1">Stage 2: Buyer Core</span>
-              <p className="text-slate-400">
-                Product browse, category filters, single-seller order placement, and status tracking.
+              <div className="pt-2 flex items-center text-xs font-semibold text-artisan-400 group-hover:translate-x-1 transition-transform">
+                Start Voice Recording <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
+
+            {/* Smart Photography Studio */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
+                  <Camera className="w-6 h-6" />
+                </div>
+                <Badge variant="secondary" size="sm">Photo AI</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-ochre-300 transition-colors">
+                2. AI Photography Assistant
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Guided camera mode checks lighting, blur, and 5-angle craft angles to generate high-converting studio-grade photos.
               </p>
-            </div>
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-blue-400 block mb-1">Stage 3: AI Voice & Catalogue</span>
-              <p className="text-slate-400">
-                Whisper speech-to-text, multilingual attribute extraction, and editable catalogue agent.
+              <div className="pt-2 flex items-center text-xs font-semibold text-ochre-400 group-hover:translate-x-1 transition-transform">
+                Launch Photo Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
+
+            {/* Deterministic Fair Pricing */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                  <Calculator className="w-6 h-6" />
+                </div>
+                <Badge variant="success" size="sm">Fair Margin</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
+                3. Deterministic Fair Pricing Calculator
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Input raw materials + hourly labor. Hard math guarantees a profitable non-negotiable floor price for your hard work.
               </p>
-            </div>
+              <div className="pt-2 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                Calculate Margins <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
+
+            {/* Orders & Bulk Aggregation */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                  <Package className="w-6 h-6" />
+                </div>
+                <Badge variant="neutral" size="sm">Fulfillment</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                4. Order Management & Dispatch
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Receive instant order notifications, generate shipping labels, and participate in pooled corporate bulk orders.
+              </p>
+              <div className="pt-2 flex items-center text-xs font-semibold text-indigo-400 group-hover:translate-x-1 transition-transform">
+                View Orders <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
           </div>
-        </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Explore Regional Clusters */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-ochre-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
+                  <Store className="w-6 h-6" />
+                </div>
+                <Badge variant="secondary" size="sm">Handmade</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-ochre-300 transition-colors">
+                1. Browse Regional Clusters
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Direct access to master weavers and pottery clusters across Varanasi, Kanchipuram, Jaipur, and Kashmir.
+              </p>
+              <div className="pt-2 flex items-center text-xs font-semibold text-ochre-400 group-hover:translate-x-1 transition-transform">
+                Explore Marketplace <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
+
+            {/* Custom Bespoke Orders */}
+            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-ochre-500/60">
+              <div className="flex items-start justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
+                  <Palette className="w-6 h-6" />
+                </div>
+                <Badge variant="primary" size="sm">Bespoke</Badge>
+              </div>
+              <h3 className="text-base font-bold text-slate-100 group-hover:text-artisan-300 transition-colors">
+                2. Request Custom Craft Design
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Connect directly with artisans to request custom sizing, specific colors, and personalized engravings.
+              </p>
+              <div className="pt-2 flex items-center text-xs font-semibold text-artisan-400 group-hover:translate-x-1 transition-transform">
+                Request Custom Piece <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </div>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Footer Help & Status */}
+      <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+        <span className="flex items-center gap-1.5">
+          <ShieldCheck className="w-4 h-4 text-emerald-400" />
+          Authenticated with 2Factor.in High-Speed SMS OTP
+        </span>
+        <span className="text-slate-500">
+          vendoKart • AI Virtual Business Manager for Traditional Artisans
+        </span>
       </div>
     </div>
   );
