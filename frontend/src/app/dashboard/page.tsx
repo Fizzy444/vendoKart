@@ -171,26 +171,6 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
-
-        {/* Action Buttons */}
-        <div className="relative z-10 flex items-center gap-2.5 self-start md:self-auto">
-          {isSeller && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsWizardOpen(!isWizardOpen)}
-              className="text-xs border-artisan-500/40 text-artisan-300 hover:bg-artisan-500/10"
-            >
-              <Edit3 className="w-3.5 h-3.5 mr-1" />
-              {isWizardOpen ? "Close Editor" : "Edit Studio Profile"}
-            </Button>
-          )}
-
-          <Button variant="ghost" size="sm" onClick={logout} className="text-xs text-red-400 hover:text-red-300">
-            <LogOut className="w-3.5 h-3.5 mr-1" />
-            Sign Out
-          </Button>
-        </div>
       </div>
 
       {/* ============================================================ */}
