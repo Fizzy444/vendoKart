@@ -9,13 +9,14 @@ import {
   Phone,
   Hammer,
   ShoppingBag,
+  Sparkles,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
 } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, authModalRole, login } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, authModalRole, login, devLogin } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
 
@@ -208,6 +209,32 @@ export const AuthModal: React.FC = () => {
               Get Verification Code
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
+
+            {/* Dev Quick Test Bypass Buttons */}
+            <div className="pt-3 mt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-artisan-400" />
+                  Dev Test 1-Click:
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => devLogin("seller")}
+                    className="px-2.5 py-1 rounded-lg bg-artisan-500/10 hover:bg-artisan-500/20 border border-artisan-500/30 text-artisan-400 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Hammer className="w-3 h-3" /> Dev Seller
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => devLogin("buyer")}
+                    className="px-2.5 py-1 rounded-lg bg-ochre-500/10 hover:bg-ochre-500/20 border border-ochre-500/30 text-ochre-400 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <ShoppingBag className="w-3 h-3" /> Dev Buyer
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
         )}
 

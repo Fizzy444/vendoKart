@@ -39,7 +39,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, devLogin } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
 
@@ -554,6 +554,38 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 </span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
+
+              {/* Dev Test Quick Login Bypass */}
+              <div className="pt-4 mt-2 border-t border-slate-800/80">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-artisan-400" />
+                    Dev 1-Click Test:
+                  </span>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        devLogin("seller");
+                        router.push(redirectUrl);
+                      }}
+                      className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-artisan-500/10 hover:bg-artisan-500/20 border border-artisan-500/30 text-artisan-400 text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Hammer className="w-3 h-3" /> Test Seller
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        devLogin("buyer");
+                        router.push(redirectUrl);
+                      }}
+                      className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-ochre-500/10 hover:bg-ochre-500/20 border border-ochre-500/30 text-ochre-400 text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <ShoppingBag className="w-3 h-3" /> Test Buyer
+                    </button>
+                  </div>
+                </div>
+              </div>
             </form>
           )}
 

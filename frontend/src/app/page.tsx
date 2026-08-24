@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, devLogin } = useAuth();
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState<boolean>(true);
 
@@ -100,6 +100,28 @@ export default function HomePage() {
               </>
             )}
           </div>
+
+          {/* Dev Quick Test Login Buttons */}
+          {!user && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => devLogin("seller")}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-artisan-500/30 hover:border-artisan-500/60 text-artisan-400 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm shadow-artisan-500/10 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-artisan-400" />
+                ⚡ Dev Test: Instant Seller Login
+              </button>
+              <button
+                type="button"
+                onClick={() => devLogin("buyer")}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-ochre-500/30 hover:border-ochre-500/60 text-ochre-400 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm shadow-ochre-500/10 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-ochre-400" />
+                ⚡ Dev Test: Instant Buyer Login
+              </button>
+            </div>
+          )}
         </div>
       </section>
 

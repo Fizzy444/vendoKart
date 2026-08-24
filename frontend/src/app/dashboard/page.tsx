@@ -24,7 +24,7 @@ import {
 import Link from "next/link";
 
 export default function DashboardPage() {
-  const { user, isLoading, openAuthModal, logout, refreshUser } = useAuth();
+  const { user, isLoading, openAuthModal, devLogin, logout, refreshUser } = useAuth();
   const [editingProfile, setEditingProfile] = useState<boolean>(false);
   const [nameInput, setNameInput] = useState<string>("");
   const [businessInput, setBusinessInput] = useState<string>("");
@@ -76,6 +76,29 @@ export default function DashboardPage() {
               <ShoppingBag className="w-4 h-4 mr-1.5" />
               Buyer Sign In
             </Button>
+          </div>
+
+          {/* Dev Test Quick Sign In Buttons */}
+          <div className="pt-4 mt-2 border-t border-slate-800/80 space-y-2">
+            <p className="text-[11px] text-slate-500 font-medium">⚡ Dev 1-Click Testing Bypass:</p>
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => devLogin("seller")}
+                className="px-3.5 py-2 rounded-xl bg-artisan-500/10 hover:bg-artisan-500/20 border border-artisan-500/30 text-artisan-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Dev Test Seller
+              </button>
+              <button
+                type="button"
+                onClick={() => devLogin("buyer")}
+                className="px-3.5 py-2 rounded-xl bg-ochre-500/10 hover:bg-ochre-500/20 border border-ochre-500/30 text-ochre-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Dev Test Buyer
+              </button>
+            </div>
           </div>
         </Card>
       </div>

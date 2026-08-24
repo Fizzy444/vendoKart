@@ -5,6 +5,7 @@ from app.models.user import UserRole
 from app.schemas.response import GenericResponse
 from app.schemas.user import (
     AuthResponse,
+    DevLoginRequest,
     OTPRequest,
     OTPResponse,
     OTPVerifyRequest,
@@ -18,6 +19,20 @@ from app.services.otp_service import OTPService
 
 logger = logging.getLogger("artisan.auth")
 router = APIRouter()
+
+
+@router.post("/dev-login", response_model=AuthResponse)
+async def dev_quick_login(request: DevLoginRequest = DevLoginRequest()):
+    """
+    Instant 1-click test login for development without SMS OTP.
+    Auto-creates and authenticates a test Seller or Buyer account.
+    """
+    auth_result = await AuthService.dev_test_login(
+        role=request.role,
+        name=request.name,
+        phone=request.phone,
+    )
+    return auth_result
 
 
 @router.post("/otp/send", response_model=OTPResponse)

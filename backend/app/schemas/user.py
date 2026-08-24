@@ -20,6 +20,12 @@ class OTPVerifyRequest(BaseModel):
     name: Optional[str] = None
 
 
+class DevLoginRequest(BaseModel):
+    role: Optional[UserRole] = UserRole.SELLER
+    name: Optional[str] = None
+    phone: Optional[str] = None
+
+
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str

@@ -106,6 +106,22 @@ class ApiService {
     return res;
   }
 
+  // Auth: 1-Click Dev Test Login
+  async devLogin(
+    role: "seller" | "buyer" = "seller",
+    name?: string,
+    phone?: string
+  ): Promise<AuthResponse> {
+    const res = await this.request<AuthResponse>("/auth/dev-login", {
+      method: "POST",
+      body: JSON.stringify({ role, name, phone }),
+    });
+    if (res.tokens) {
+      this.setTokens(res.tokens);
+    }
+    return res;
+  }
+
   // Auth: Get Current Profile
   async getMe(): Promise<User> {
     return this.request<User>("/auth/me", {}, true);

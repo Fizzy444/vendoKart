@@ -86,6 +86,54 @@ class AuthService:
         return AuthResponse(user=user_response, tokens=tokens)
 
     @classmethod
+    async def dev_test_login(
+        cls,
+        role: Optional[UserRole] = None,
+        name: Optional[str] = None,
+        phone: Optional[str] = None,
+    ) -> AuthResponse:
+        assigned_role = role or UserRole.SELLER
+        target_phone = phone or ("+919876543210" if assigned_role == UserRole.SELLER else "+919876543211")
+        default_name = name or ("Dev Test Artisan" if assigned_role == UserRole.SELLER else "Dev Test Buyer")
+        business_name = "Dev Artisan Studio" if assigned_role == UserRole.SELLER else None
+
+        user_db = await UserRepository.get_by_phone(target_phone)
+        if not user_db:
+            new_user_data = {
+                "phone": target_phone,
+                "name": default_name,
+                "business_name": business_name,
+                "roles": [assigned_role],
+                "status": UserStatus.ACTIVE,
+                "is_phone_verified": True,
+            }
+            user_db = await UserRepository.create(new_user_data)
+        else:
+            update_fields = {}
+            roles_set = set(user_db.roles)
+            if assigned_role not in roles_set:
+                roles_set.add(assigned_role)
+                update_fields["roles"] = list(roles_set)
+            if not user_db.name:
+                update_fields["name"] = default_name
+            if update_fields:
+                updated = await UserRepository.update(user_db.id, update_fields)
+                if updated:
+                    user_db = updated
+
+        role_strings = [r.value if hasattr(r, "value") else str(r) for r in user_db.roles]
+        access_token = create_access_token(subject=user_db.id, roles=role_strings)
+        refresh_token = create_refresh_token(subject=user_db.id)
+
+        user_response = cls._to_user_response(user_db)
+        tokens = TokenPair(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+        )
+        return AuthResponse(user=user_response, tokens=tokens)
+
+    @classmethod
     async def refresh_tokens(cls, refresh_token: str) -> TokenPair:
         payload = decode_token(refresh_token)
         if not payload or payload.get("type") != "refresh":
