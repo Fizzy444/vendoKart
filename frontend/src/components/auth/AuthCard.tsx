@@ -50,7 +50,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [role, setRole] = useState<"seller" | "buyer">(queryRole || initialRole);
   const [step, setStep] = useState<"form" | "otp">("form");
 
-  // Form Fields (Clean empty defaults with zero placeholders)
+  // Form Fields
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
@@ -94,18 +94,24 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     }
   }, [step]);
 
+  const getFullPhone = () => {
+    const raw = phone.replace(/\D/g, "");
+    return `+91${raw.slice(-10)}`;
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      if (cleanPhone.length < 10) {
-        throw new Error("Please enter your complete mobile number with country code");
+      const raw = phone.replace(/\D/g, "");
+      if (raw.length < 10) {
+        throw new Error("Please enter your 10-digit mobile number");
       }
 
-      const response = await api.sendOtp(cleanPhone);
+      const fullPhone = getFullPhone();
+      const response = await api.sendOtp(fullPhone);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
       }
@@ -124,12 +130,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     setIsLoading(true);
 
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
+      const fullPhone = getFullPhone();
       const finalName = role === "seller" 
         ? (name || businessName || undefined) 
         : (name || undefined);
 
-      await login(cleanPhone, otp, role, finalName);
+      await login(fullPhone, otp, role, finalName);
       
       // Navigate to destination
       router.push(redirectUrl);
@@ -324,7 +330,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {step === "otp"
-                  ? `Enter the 6-digit code sent via SMS to ${phone}`
+                  ? `Enter the 6-digit code sent via SMS to +91 ${phone}`
                   : mode === "login"
                   ? "Sign in with your registered mobile number"
                   : `Join vendoKart as ${role === "seller" ? "an Artisan Seller" : "a Buyer"}`}
@@ -507,22 +513,29 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 </div>
               )}
 
-              {/* Phone number field */}
+              {/* Phone number field with fixed +91 badge */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Mobile Number (with country code) <span className="text-artisan-400">*</span>
+                  Mobile Number <span className="text-artisan-400">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Phone className="w-4 h-4" />
+                <div className="relative flex items-center">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-4 h-4 text-slate-500" />
+                    <span className="ml-2 font-mono font-semibold text-slate-200 text-sm border-r border-slate-700 pr-2.5">+91</span>
                   </div>
                   <input
                     type="tel"
                     required
+                    maxLength={10}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 00000 00000"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setPhone(val);
+                    }}
+                    placeholder="00000 00000"
+                    className="w-full pl-20 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm font-mono tracking-wider focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
@@ -570,7 +583,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                   <Phone className="w-3.5 h-3.5 text-artisan-400" />
                   SMS Sent to:
                 </span>
-                <span className="font-mono text-slate-200 font-semibold">{phone}</span>
+                <span className="font-mono text-slate-200 font-semibold">+91 {phone}</span>
               </div>
 
               {/* 6-Digit Segmented Pin Display with translucent 0 placeholders */}

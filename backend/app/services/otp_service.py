@@ -41,10 +41,8 @@ class OTPService:
         if not clean_phone.startswith("+"):
             clean_phone = f"+{clean_phone}"
 
-        body = (
-            f"Your vendoKart verification code is: {otp}\n"
-            f"Valid for 5 minutes. Do not share this code with anyone."
-        )
+        # Predefined template required by Twilio Trial accounts for Indian destinations (DLT compliance)
+        body = f"Your Twilio verification code is: {otp}"
 
         try:
             if settings.TWILIO_VERIFY_SERVICE_SID:

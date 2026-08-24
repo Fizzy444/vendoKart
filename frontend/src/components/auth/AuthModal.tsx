@@ -48,16 +48,22 @@ export const AuthModal: React.FC = () => {
 
   if (!isAuthModalOpen) return null;
 
+  const getFullPhone = () => {
+    const raw = phone.replace(/\D/g, "");
+    return `+91${raw.slice(-10)}`;
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      if (cleanPhone.length < 10) {
-        throw new Error("Please enter your complete mobile number with country code");
+      const raw = phone.replace(/\D/g, "");
+      if (raw.length < 10) {
+        throw new Error("Please enter your 10-digit mobile number");
       }
-      const response = await api.sendOtp(cleanPhone);
+      const fullPhone = getFullPhone();
+      const response = await api.sendOtp(fullPhone);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
       }
@@ -74,8 +80,8 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      await login(cleanPhone, otp, role, name || undefined);
+      const fullPhone = getFullPhone();
+      await login(fullPhone, otp, role, name || undefined);
       // Reset form state
       setStep("phone");
       setOtp("");
@@ -116,7 +122,7 @@ export const AuthModal: React.FC = () => {
           <p className="text-sm text-slate-400 mt-1">
             {step === "phone"
               ? "Sign in or register with your mobile number"
-              : `Enter the 6-digit code sent via SMS to ${phone}`}
+              : `Enter the 6-digit code sent via SMS to +91 ${phone}`}
           </p>
         </div>
 
@@ -172,22 +178,29 @@ export const AuthModal: React.FC = () => {
               />
             </div>
 
-            {/* Phone input */}
+            {/* Phone input with fixed +91 badge */}
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
-                Mobile Number (with country code)
+                Mobile Number
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Phone className="w-4 h-4" />
+              <div className="relative flex items-center">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  <span className="ml-2 font-mono font-semibold text-slate-200 text-sm border-r border-slate-700 pr-2.5">+91</span>
                 </div>
                 <input
                   type="tel"
                   required
+                  maxLength={10}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 00000 00000"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(val);
+                  }}
+                  placeholder="00000 00000"
+                  className="w-full pl-20 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono tracking-wider"
                 />
               </div>
             </div>
