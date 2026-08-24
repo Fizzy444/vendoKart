@@ -53,7 +53,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [step, setStep] = useState<"form" | "otp">("form");
 
   // Form Fields
-  const [phone, setPhone] = useState<string>("+91 98765 43210");
+  const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
   const [craftCategory, setCraftCategory] = useState<string>("Handloom & Textiles");

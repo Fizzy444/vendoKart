@@ -25,7 +25,7 @@ export const AuthModal: React.FC = () => {
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [role, setRole] = useState<"seller" | "buyer">(authModalRole || "seller");
   const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
-  const [phone, setPhone] = useState<string>("+91 98765 43210");
+  const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
   const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
