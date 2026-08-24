@@ -41,17 +41,17 @@ class OTPService:
         if not clean_phone.startswith("+"):
             clean_phone = f"+{clean_phone}"
 
-        # Predefined template required by Twilio Trial accounts for Indian destinations (DLT compliance)
         body = f"Your Twilio verification code is: {otp}"
 
         try:
             if settings.TWILIO_VERIFY_SERVICE_SID:
-                # Twilio Verify API
+                # Official Twilio Verify API (Works seamlessly on Trial & Paid accounts)
                 verification = client.verify.v2.services(
                     settings.TWILIO_VERIFY_SERVICE_SID
                 ).verifications.create(to=clean_phone, channel="sms")
-                logger.info(f"Twilio Verify SMS requested. SID: {verification.sid}")
+                logger.info(f"Twilio Verify SMS requested successfully. SID: {verification.sid} to {clean_phone}")
             elif settings.TWILIO_PHONE_NUMBER:
+                # Standard Twilio Programmable SMS
                 msg = client.messages.create(
                     body=body,
                     from_=settings.TWILIO_PHONE_NUMBER,
@@ -64,6 +64,26 @@ class OTPService:
                 )
         except Exception as e:
             logger.error(f"Error sending SMS via Twilio: {e}")
+
+    @classmethod
+    def _verify_twilio_otp_sync(cls, phone: str, otp: str) -> bool:
+        client = cls._get_twilio_client()
+        if not client or not settings.TWILIO_VERIFY_SERVICE_SID:
+            return False
+
+        clean_phone = phone.strip()
+        if not clean_phone.startswith("+"):
+            clean_phone = f"+{clean_phone}"
+
+        try:
+            check = client.verify.v2.services(
+                settings.TWILIO_VERIFY_SERVICE_SID
+            ).verification_checks.create(to=clean_phone, code=otp)
+            logger.info(f"Twilio Verify check status: {check.status}")
+            return check.status == "approved"
+        except Exception as e:
+            logger.error(f"Error verifying OTP with Twilio Verify: {e}")
+            return False
 
     @classmethod
     async def generate_otp(cls, phone: str) -> Tuple[str, bool]:
@@ -111,6 +131,16 @@ class OTPService:
             logger.info(f"Verified dev mock OTP for phone {phone}")
             return True
 
+        # Check Twilio Verify Service if active
+        if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_VERIFY_SERVICE_SID:
+            try:
+                approved = await asyncio.to_thread(cls._verify_twilio_otp_sync, phone, otp)
+                if approved:
+                    return True
+            except Exception as e:
+                logger.warning(f"Twilio Verify check failed: {e}")
+
+        # Check Redis
         redis_client = get_redis_client()
         if redis_client is not None:
             try:
