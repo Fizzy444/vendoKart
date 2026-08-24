@@ -23,16 +23,13 @@ router = APIRouter()
 @router.post("/otp/send", response_model=OTPResponse)
 async def send_otp(request: OTPRequest):
     """
-    Send OTP code to the provided phone number via SMS or WhatsApp using Twilio.
+    Send OTP code to the provided phone number via Twilio SMS.
     In development mode, returns the mock OTP code directly for convenience.
     """
-    channel = (request.channel or "sms").lower()
-    otp, is_dev = await OTPService.generate_otp(request.phone, channel=channel)
-    channel_display = "WhatsApp" if channel == "whatsapp" else "SMS"
+    otp, is_dev = await OTPService.generate_otp(request.phone)
     return OTPResponse(
-        message=f"OTP sent successfully via {channel_display}",
+        message="OTP sent successfully via SMS",
         phone=request.phone,
-        channel=channel,
         is_dev_mode=is_dev,
         dev_otp=otp if is_dev else None,
     )

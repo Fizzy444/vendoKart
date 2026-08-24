@@ -6,13 +6,11 @@ from app.models.user import Location, UserRole, UserStatus
 
 class OTPRequest(BaseModel):
     phone: str = Field(..., description="Phone number with country code, e.g. +919876543210")
-    channel: Optional[str] = Field(default="sms", description="Delivery channel: 'sms' or 'whatsapp'")
 
 
 class OTPResponse(BaseModel):
     message: str
     phone: str
-    channel: str = "sms"
     is_dev_mode: bool = False
     dev_otp: Optional[str] = None
 

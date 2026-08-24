@@ -24,8 +24,6 @@ import {
   Heart,
   Palette,
   Check,
-  MessageSquare,
-  MessageCircle,
 } from "lucide-react";
 
 interface AuthCardProps {
@@ -50,10 +48,9 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
   const [mode, setMode] = useState<"login" | "register">(queryMode || initialMode);
   const [role, setRole] = useState<"seller" | "buyer">(queryRole || initialRole);
-  const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [step, setStep] = useState<"form" | "otp">("form");
 
-  // Form Fields (Empty defaults with no placeholders)
+  // Form Fields (Clean empty defaults with zero placeholders)
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
@@ -108,14 +105,14 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         throw new Error("Please enter your complete mobile number with country code");
       }
 
-      const response = await api.sendOtp(cleanPhone, channel);
+      const response = await api.sendOtp(cleanPhone);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
       }
       setResendCooldown(30);
       setStep("otp");
     } catch (err: any) {
-      setError(err.message || "Failed to send verification code. Please check your network connection.");
+      setError(err.message || "Failed to send SMS verification code. Please check your connection.");
     } finally {
       setIsLoading(false);
     }
@@ -306,9 +303,9 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         <div className="relative z-10 pt-8 mt-8 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Twilio Verified Security
+            Twilio Verified SMS Security
           </span>
-          <span>SMS & WhatsApp OTP</span>
+          <span>Fast Passwordless Login</span>
         </div>
       </div>
 
@@ -327,7 +324,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {step === "otp"
-                  ? `Enter the 6-digit code sent via ${channel === "whatsapp" ? "WhatsApp" : "SMS"} to ${phone}`
+                  ? `Enter the 6-digit code sent via SMS to ${phone}`
                   : mode === "login"
                   ? "Sign in with your registered mobile number"
                   : `Join vendoKart as ${role === "seller" ? "an Artisan Seller" : "a Buyer"}`}
@@ -527,44 +524,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
-              </div>
-
-              {/* Delivery Channel Selector: SMS vs WhatsApp */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Receive OTP Code Via
-                </label>
-                <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-slate-950 rounded-2xl border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setChannel("sms")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                      channel === "sms"
-                        ? "bg-slate-800 text-white shadow-sm border border-slate-700"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-artisan-400" />
-                    SMS Text Message
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setChannel("whatsapp")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                      channel === "whatsapp"
-                        ? "bg-emerald-950/60 text-emerald-300 border border-emerald-600/40 shadow-sm"
-                        : "text-slate-400 hover:text-emerald-400"
-                    }`}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    WhatsApp Message
-                  </button>
-                </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  {channel === "whatsapp"
-                    ? "Twilio will deliver the 6-digit code to your WhatsApp."
-                    : "Twilio will send standard SMS verification to your phone."}
+                  We will send a 6-digit verification code to your phone via SMS.
                 </p>
               </div>
 
@@ -574,20 +535,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 isLoading={isLoading}
                 variant={role === "seller" ? "primary" : "primary"}
                 className={`w-full mt-4 py-3 ${
-                  channel === "whatsapp"
-                    ? "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500 text-white"
-                    : role === "buyer"
-                    ? "bg-ochre-600 hover:bg-ochre-500 focus:ring-ochre-500"
-                    : ""
+                  role === "buyer" ? "bg-ochre-600 hover:bg-ochre-500 focus:ring-ochre-500" : ""
                 }`}
                 size="lg"
               >
                 <span>
-                  {channel === "whatsapp"
-                    ? "Send Code via WhatsApp"
-                    : mode === "login"
-                    ? "Send Code via SMS"
-                    : "Register & Continue"}
+                  {mode === "login" ? "Get Verification Code" : "Register & Continue"}
                 </span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
@@ -610,15 +563,11 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 </div>
               )}
 
-              {/* Channel Indicator */}
+              {/* SMS Notification Banner */}
               <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                 <span className="text-slate-400 flex items-center gap-1.5">
-                  {channel === "whatsapp" ? (
-                    <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4 text-artisan-400" />
-                  )}
-                  Delivered via {channel === "whatsapp" ? "WhatsApp" : "SMS"}:
+                  <Phone className="w-3.5 h-3.5 text-artisan-400" />
+                  SMS Sent to:
                 </span>
                 <span className="font-mono text-slate-200 font-semibold">{phone}</span>
               </div>

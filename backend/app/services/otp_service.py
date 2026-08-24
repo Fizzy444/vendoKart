@@ -31,7 +31,7 @@ class OTPService:
         return None
 
     @classmethod
-    def _send_twilio_message_sync(cls, phone: str, otp: str, channel: str):
+    def _send_twilio_sms_sync(cls, phone: str, otp: str):
         client = cls._get_twilio_client()
         if not client:
             logger.warning("Twilio client credentials not configured.")
@@ -47,41 +47,28 @@ class OTPService:
         )
 
         try:
-            if channel == "whatsapp":
-                # Twilio WhatsApp message
-                from_number = settings.TWILIO_WHATSAPP_NUMBER or "whatsapp:+14155238886"
-                to_number = f"whatsapp:{clean_phone}"
+            if settings.TWILIO_VERIFY_SERVICE_SID:
+                # Twilio Verify API
+                verification = client.verify.v2.services(
+                    settings.TWILIO_VERIFY_SERVICE_SID
+                ).verifications.create(to=clean_phone, channel="sms")
+                logger.info(f"Twilio Verify SMS requested. SID: {verification.sid}")
+            elif settings.TWILIO_PHONE_NUMBER:
                 msg = client.messages.create(
                     body=body,
-                    from_=from_number,
-                    to=to_number,
+                    from_=settings.TWILIO_PHONE_NUMBER,
+                    to=clean_phone,
                 )
-                logger.info(f"Twilio WhatsApp message sent successfully. SID: {msg.sid} to {to_number}")
-
+                logger.info(f"Twilio SMS message sent successfully. SID: {msg.sid} to {clean_phone}")
             else:
-                # Twilio SMS message
-                if settings.TWILIO_VERIFY_SERVICE_SID:
-                    # Twilio Verify API
-                    verification = client.verify.v2.services(
-                        settings.TWILIO_VERIFY_SERVICE_SID
-                    ).verifications.create(to=clean_phone, channel="sms")
-                    logger.info(f"Twilio Verify SMS requested. SID: {verification.sid}")
-                elif settings.TWILIO_PHONE_NUMBER:
-                    msg = client.messages.create(
-                        body=body,
-                        from_=settings.TWILIO_PHONE_NUMBER,
-                        to=clean_phone,
-                    )
-                    logger.info(f"Twilio SMS message sent successfully. SID: {msg.sid} to {clean_phone}")
-                else:
-                    logger.info(
-                        f"[Twilio Info] No TWILIO_PHONE_NUMBER set for SMS. For testing, set TWILIO_PHONE_NUMBER in .env. Code: {otp}"
-                    )
+                logger.info(
+                    f"[Twilio Info] No TWILIO_PHONE_NUMBER set in .env. Code: {otp}"
+                )
         except Exception as e:
-            logger.error(f"Error sending message via Twilio ({channel}): {e}")
+            logger.error(f"Error sending SMS via Twilio: {e}")
 
     @classmethod
-    async def generate_otp(cls, phone: str, channel: str = "sms") -> Tuple[str, bool]:
+    async def generate_otp(cls, phone: str) -> Tuple[str, bool]:
         is_dev = cls.is_dev_mode()
 
         if is_dev and settings.DEV_MOCK_OTP:
@@ -110,12 +97,12 @@ class OTPService:
             _in_memory_otp_cache[phone] = (otp, expiry)
             logger.info(f"Stored OTP in in-memory cache for phone {phone}")
 
-        # Send via Twilio in background thread if configured
+        # Send SMS via Twilio in background thread if configured
         if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
             try:
-                await asyncio.to_thread(cls._send_twilio_message_sync, phone, otp, channel)
+                await asyncio.to_thread(cls._send_twilio_sms_sync, phone, otp)
             except Exception as e:
-                logger.error(f"Failed to trigger Twilio dispatch task: {e}")
+                logger.error(f"Failed to trigger Twilio SMS dispatch task: {e}")
 
         return otp, is_dev
 
