@@ -73,7 +73,7 @@ export default function App() {
               href="#docs"
               onClick={(e) => {
                 e.preventDefault();
-                alert('vendoKart Buyer Search, RAG & Inbuilt Chat\nBranch: branch-muthu\nFeatures:\n- Semantic / NL Search\n- Instant Autocomplete\n- Buyer-to-Seller Direct Chat & Quotes');
+                alert('vendoKart Buyer Search, RAG & Inbuilt Chat\nFeatures:\n- Semantic / NL Search\n- Instant Autocomplete\n- Buyer-to-Seller Direct Chat & Quotes');
               }}
               className="text-xs font-semibold text-gray-600 hover:text-brand-600 px-3 py-1.5 rounded-lg hover:bg-orange-50 transition-colors"
             >
@@ -151,9 +151,7 @@ export default function App() {
             <span>•</span>
             <span>Empowering micro-entrepreneurs & artisans</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span>Branch: <code className="text-brand-600 font-mono bg-brand-50 px-1.5 py-0.5 rounded">branch-muthu</code></span>
-            <span>•</span>
+          <div>
             <span>Grounded RAG Search UI</span>
           </div>
         </div>
