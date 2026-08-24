@@ -5,7 +5,6 @@ from app.models.user import UserRole
 from app.schemas.response import GenericResponse
 from app.schemas.user import (
     AuthResponse,
-    FirebaseLoginRequest,
     OTPRequest,
     OTPResponse,
     OTPVerifyRequest,
@@ -19,21 +18,6 @@ from app.services.otp_service import OTPService
 
 logger = logging.getLogger("artisan.auth")
 router = APIRouter()
-
-
-@router.post("/firebase-login", response_model=AuthResponse)
-async def firebase_login(request: FirebaseLoginRequest):
-    """
-    Authenticate or auto-register a user with a verified Firebase ID token.
-    Issues JWT session tokens for the application.
-    """
-    auth_result = await AuthService.authenticate_with_firebase(
-        id_token=request.id_token,
-        phone=request.phone,
-        role=request.role,
-        name=request.name,
-    )
-    return auth_result
 
 
 @router.post("/otp/send", response_model=OTPResponse)

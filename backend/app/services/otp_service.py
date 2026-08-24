@@ -2,6 +2,7 @@ import logging
 import random
 import time
 from typing import Dict, Optional, Tuple
+import httpx
 from app.core.config import settings
 from app.core.database import get_redis_client
 
@@ -9,39 +10,6 @@ logger = logging.getLogger("artisan.service.otp")
 
 # In-memory fallback cache for OTPs if Redis is not running: {phone: (otp, expiry_timestamp)}
 _in_memory_otp_cache: Dict[str, Tuple[str, float]] = {}
-
-# Firebase Admin app initialized flag
-_firebase_initialized = False
-
-
-def _init_firebase_admin():
-    global _firebase_initialized
-    if _firebase_initialized:
-        return True
-
-    try:
-        import firebase_admin
-        from firebase_admin import credentials
-
-        if settings.FIREBASE_CREDENTIALS_PATH:
-            cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-            firebase_admin.initialize_app(cred)
-            _firebase_initialized = True
-            logger.info("Firebase Admin initialized with service account certificate.")
-        elif settings.FIREBASE_PROJECT_ID:
-            firebase_admin.initialize_app(options={"projectId": settings.FIREBASE_PROJECT_ID})
-            _firebase_initialized = True
-            logger.info(f"Firebase Admin initialized with project ID: {settings.FIREBASE_PROJECT_ID}")
-        else:
-            # Initialize default app if ADC or env is present
-            if not firebase_admin._apps:
-                firebase_admin.initialize_app()
-            _firebase_initialized = True
-            logger.info("Firebase Admin initialized with default credentials.")
-        return True
-    except Exception as e:
-        logger.warning(f"Firebase Admin SDK initialization skipped: {e}")
-        return False
 
 
 class OTPService:
@@ -53,32 +21,35 @@ class OTPService:
         )
 
     @classmethod
-    async def verify_firebase_id_token(cls, id_token: str) -> Optional[Dict]:
+    async def _send_2factor_sms(cls, phone: str, otp: str) -> bool:
         """
-        Verify a Firebase ID token sent from the client.
-        Returns decoded token dict containing phone_number and uid if valid.
+        Dispatch SMS OTP via 2Factor.in API.
         """
+        api_key = settings.TWOFACTOR_API_KEY
+        if not api_key:
+            logger.warning("2Factor.in API Key is not configured.")
+            return False
+
+        clean_phone = phone.strip()
+        if not clean_phone.startswith("+"):
+            clean_phone = f"+{clean_phone}"
+
+        # 2Factor SMS URL: https://2factor.in/API/V1/{api_key}/SMS/{phone_number}/{otp_val}
+        url = f"https://2factor.in/API/V1/{api_key}/SMS/{clean_phone}/{otp}"
+
         try:
-            import firebase_admin
-            from firebase_admin import auth
-
-            if _init_firebase_admin():
-                decoded_token = auth.verify_id_token(id_token)
-                logger.info(f"Successfully verified Firebase ID token for UID: {decoded_token.get('uid')}")
-                return decoded_token
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(url)
+                data = response.json()
+                if response.status_code == 200 and data.get("Status") == "Success":
+                    logger.info(f"2Factor.in SMS sent successfully to {clean_phone}. Details: {data.get('Details')}")
+                    return True
+                else:
+                    logger.error(f"2Factor.in SMS failed: {data}")
+                    return False
         except Exception as e:
-            logger.warning(f"Firebase token verification failed: {e}")
-
-        # In dev mode, allow mock token verification
-        if cls.is_dev_mode() and id_token.startswith("dev-mock-token-"):
-            phone = id_token.replace("dev-mock-token-", "")
-            return {
-                "uid": f"dev_{phone.replace('+', '')}",
-                "phone_number": phone,
-                "firebase": {"sign_in_provider": "phone"},
-            }
-
-        return None
+            logger.error(f"Error calling 2Factor.in API: {e}")
+            return False
 
     @classmethod
     async def generate_otp(cls, phone: str) -> Tuple[str, bool]:
@@ -109,6 +80,13 @@ class OTPService:
             expiry = time.time() + settings.OTP_EXPIRY_SECONDS
             _in_memory_otp_cache[phone] = (otp, expiry)
             logger.info(f"Stored OTP in in-memory cache for phone {phone}")
+
+        # Send live SMS via 2Factor.in if API key is configured
+        if settings.TWOFACTOR_API_KEY:
+            try:
+                await cls._send_2factor_sms(phone, otp)
+            except Exception as e:
+                logger.error(f"Failed to dispatch 2Factor SMS: {e}")
 
         return otp, is_dev
 

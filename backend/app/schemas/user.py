@@ -22,13 +22,6 @@ class OTPVerifyRequest(BaseModel):
     name: Optional[str] = None
 
 
-class FirebaseLoginRequest(BaseModel):
-    id_token: str
-    phone: Optional[str] = None
-    role: Optional[UserRole] = UserRole.BUYER
-    name: Optional[str] = None
-
-
 class TokenPair(BaseModel):
     access_token: str
     refresh_token: str

@@ -106,23 +106,6 @@ class ApiService {
     return res;
   }
 
-  // Auth: Firebase Verified Token Login
-  async firebaseLogin(
-    idToken: string,
-    role: "seller" | "buyer" = "buyer",
-    name?: string,
-    phone?: string
-  ): Promise<AuthResponse> {
-    const res = await this.request<AuthResponse>("/auth/firebase-login", {
-      method: "POST",
-      body: JSON.stringify({ id_token: idToken, role, name, phone }),
-    });
-    if (res.tokens) {
-      this.setTokens(res.tokens);
-    }
-    return res;
-  }
-
   // Auth: Get Current Profile
   async getMe(): Promise<User> {
     return this.request<User>("/auth/me", {}, true);

@@ -37,14 +37,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # OTP & Auth Provider
-    OTP_PROVIDER: str = "firebase"
+    # OTP & SMS Gateway (2Factor.in)
+    OTP_PROVIDER: str = "2factor"
     OTP_EXPIRY_SECONDS: int = 300
     DEV_MOCK_OTP: str = "123456"
 
-    # Firebase Configuration (Loaded from .env)
-    FIREBASE_PROJECT_ID: str = ""
-    FIREBASE_CREDENTIALS_PATH: str = ""
+    # 2Factor.in Configuration (Loaded securely from .env)
+    TWOFACTOR_API_KEY: str = ""
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [

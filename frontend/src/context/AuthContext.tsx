@@ -12,7 +12,6 @@ interface AuthContextType {
   openAuthModal: (role?: "seller" | "buyer") => void;
   closeAuthModal: () => void;
   login: (phone: string, otp: string, role: "seller" | "buyer", name?: string) => Promise<void>;
-  firebaseLogin: (idToken: string, role: "seller" | "buyer", name?: string, phone?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
@@ -62,17 +61,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false);
   };
 
-  const firebaseLogin = async (
-    idToken: string,
-    role: "seller" | "buyer",
-    name?: string,
-    phone?: string
-  ) => {
-    const res = await api.firebaseLogin(idToken, role, name, phone);
-    setUser(res.user);
-    setIsAuthModalOpen(false);
-  };
-
   const logout = () => {
     api.logout();
     setUser(null);
@@ -93,7 +81,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openAuthModal,
         closeAuthModal,
         login,
-        firebaseLogin,
         logout,
         refreshUser,
         hasRole,

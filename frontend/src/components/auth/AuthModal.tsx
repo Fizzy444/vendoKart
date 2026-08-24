@@ -3,13 +3,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
-import {
-  isFirebaseConfigured,
-  sendFirebasePhoneOtp,
-  confirmFirebaseOtp,
-  clearRecaptchaVerifier,
-} from "@/services/firebase";
-import { ConfirmationResult } from "firebase/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -24,10 +17,9 @@ import {
 } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, authModalRole, login, firebaseLogin } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, authModalRole, login } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [role, setRole] = useState<"seller" | "buyer">(authModalRole || "seller");
@@ -44,13 +36,6 @@ export const AuthModal: React.FC = () => {
       setRole(authModalRole);
     }
   }, [authModalRole]);
-
-  // Clean up recaptcha on unmount
-  useEffect(() => {
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
 
   // Focus OTP on transition
   useEffect(() => {
@@ -78,17 +63,10 @@ export const AuthModal: React.FC = () => {
         throw new Error("Please enter your 10-digit mobile number");
       }
       const fullPhone = getFullPhone();
-
-      if (isFirebaseConfigured()) {
-        const result = await sendFirebasePhoneOtp(fullPhone, "modal-recaptcha-container");
-        setConfirmationResult(result);
-      } else {
-        const response = await api.sendOtp(fullPhone);
-        if (response.is_dev_mode && response.dev_otp) {
-          setDevOtpHint(response.dev_otp);
-        }
+      const response = await api.sendOtp(fullPhone);
+      if (response.is_dev_mode && response.dev_otp) {
+        setDevOtpHint(response.dev_otp);
       }
-
       setStep("otp");
     } catch (err: any) {
       setError(err.message || "Failed to send verification code");
@@ -103,20 +81,12 @@ export const AuthModal: React.FC = () => {
     setIsLoading(true);
     try {
       const fullPhone = getFullPhone();
-
-      if (confirmationResult) {
-        const userCredential = await confirmFirebaseOtp(confirmationResult, otp);
-        const idToken = await userCredential.user.getIdToken();
-        await firebaseLogin(idToken, role, name || undefined, fullPhone);
-      } else {
-        await login(fullPhone, otp, role, name || undefined);
-      }
+      await login(fullPhone, otp, role, name || undefined);
 
       // Reset form state
       setStep("phone");
       setOtp("");
       setDevOtpHint(null);
-      setConfirmationResult(null);
     } catch (err: any) {
       setError(err.message || "Invalid OTP code");
     } finally {
@@ -126,9 +96,6 @@ export const AuthModal: React.FC = () => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
-      {/* Invisible container for Firebase reCAPTCHA */}
-      <div id="modal-recaptcha-container"></div>
-
       <div
         className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl shadow-black/80"
         onClick={(e) => e.stopPropagation()}
@@ -323,10 +290,7 @@ export const AuthModal: React.FC = () => {
             <div className="flex items-center justify-between text-xs text-slate-400">
               <button
                 type="button"
-                onClick={() => {
-                  setStep("phone");
-                  setConfirmationResult(null);
-                }}
+                onClick={() => setStep("phone")}
                 className="hover:text-slate-200 transition-colors"
               >
                 ← Change Number

@@ -5,13 +5,6 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
-import {
-  isFirebaseConfigured,
-  sendFirebasePhoneOtp,
-  confirmFirebaseOtp,
-  clearRecaptchaVerifier,
-} from "@/services/firebase";
-import { ConfirmationResult } from "firebase/auth";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -46,10 +39,9 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login, firebaseLogin } = useAuth();
+  const { login } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
-  const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
   const queryRole = searchParams.get("role") as "seller" | "buyer" | null;
   const queryMode = searchParams.get("mode") as "login" | "register" | null;
@@ -93,13 +85,6 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     }
   }, [resendCooldown]);
 
-  // Clean up recaptcha on unmount
-  useEffect(() => {
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
-
   // Focus OTP input on transition
   useEffect(() => {
     if (step === "otp") {
@@ -122,30 +107,18 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     try {
       const raw = phone.replace(/\D/g, "");
       if (raw.length < 10) {
-        throw new Error("Please enter your 10-digit mobile number");
+        throw new Error("Please enter your complete 10-digit mobile number");
       }
 
       const fullPhone = getFullPhone();
-
-      if (isFirebaseConfigured()) {
-        // Firebase Live SMS Dispatch with invisible reCAPTCHA
-        const result = await sendFirebasePhoneOtp(fullPhone, "recaptcha-container");
-        setConfirmationResult(result);
-      } else {
-        // Dev Sandbox Dispatch Fallback
-        const response = await api.sendOtp(fullPhone);
-        if (response.is_dev_mode && response.dev_otp) {
-          setDevOtpHint(response.dev_otp);
-        }
+      const response = await api.sendOtp(fullPhone);
+      if (response.is_dev_mode && response.dev_otp) {
+        setDevOtpHint(response.dev_otp);
       }
-
       setResendCooldown(30);
       setStep("otp");
     } catch (err: any) {
-      setError(
-        err.message ||
-        "Failed to send SMS verification code. Please check your network connection."
-      );
+      setError(err.message || "Failed to send SMS verification code. Please check your network connection.");
     } finally {
       setIsLoading(false);
     }
@@ -158,20 +131,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
     try {
       const fullPhone = getFullPhone();
-      const finalName = role === "seller"
-        ? (name || businessName || undefined)
+      const finalName = role === "seller" 
+        ? (name || businessName || undefined) 
         : (name || undefined);
 
-      if (confirmationResult) {
-        // Confirm with Firebase Auth
-        const userCredential = await confirmFirebaseOtp(confirmationResult, otp);
-        const idToken = await userCredential.user.getIdToken();
-        await firebaseLogin(idToken, role, finalName, fullPhone);
-      } else {
-        // Local / Dev Mode Verify
-        await login(fullPhone, otp, role, finalName);
-      }
-
+      await login(fullPhone, otp, role, finalName);
+      
       // Navigate to destination
       router.push(redirectUrl);
     } catch (err: any) {
@@ -203,9 +168,6 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
   return (
     <div className="w-full max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-      {/* Invisible container for Firebase reCAPTCHA */}
-      <div id="recaptcha-container"></div>
-
       {/* Left Feature Column: Dynamic role-based showcase */}
       <div
         className={`lg:col-span-5 rounded-3xl p-8 border flex flex-col justify-between relative overflow-hidden transition-all duration-300 ${
@@ -347,7 +309,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         <div className="relative z-10 pt-8 mt-8 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Google Firebase Secured SMS
+            2Factor.in Verified High-Speed SMS
           </span>
           <span>Fast Passwordless Login</span>
         </div>
@@ -681,10 +643,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <button
                   type="button"
-                  onClick={() => {
-                    setStep("form");
-                    setConfirmationResult(null);
-                  }}
+                  onClick={() => setStep("form")}
                   className="flex items-center gap-1 hover:text-slate-200 transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" />
