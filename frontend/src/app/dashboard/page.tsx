@@ -8,6 +8,7 @@ import { Product } from "@/types/product";
 import { SellerProfileWizard } from "@/components/seller/SellerProfileWizard";
 import { AddProductModal } from "@/components/seller/AddProductModal";
 import { SellerProductsList } from "@/components/seller/SellerProductsList";
+import { SellerVerificationWizard } from "@/components/seller/SellerVerificationWizard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -32,6 +33,7 @@ import {
   Users,
   Layers,
   IndianRupee,
+  AlertCircle,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -44,6 +46,9 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [isAddProductOpen, setIsAddProductOpen] = useState<boolean>(false);
+
+  // Verification State (§12 Presence & Trust)
+  const [isVerificationOpen, setIsVerificationOpen] = useState<boolean>(false);
 
   // Derive role
   const isSeller = user?.roles.includes("seller") || user?.roles.includes("admin");
@@ -232,8 +237,20 @@ export default function DashboardPage() {
             />
           )}
 
-          {/* 4. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
-          {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && !isAddProductOpen && (
+          {/* 4. In-Page Live Camera & Presence Verification Studio (§12) */}
+          {isVerificationOpen && (
+            <SellerVerificationWizard
+              sellerProfile={sellerProfile}
+              onClose={() => setIsVerificationOpen(false)}
+              onVerificationComplete={(res) => {
+                fetchSellerProfile();
+                setIsVerificationOpen(false);
+              }}
+            />
+          )}
+
+          {/* 5. Onboarding Prompt Banner (If seller hasn't completed full studio setup) */}
+          {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && !isAddProductOpen && !isVerificationOpen && (
             <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -262,8 +279,35 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* 5. Artisan Studio Overview Card */}
-          {sellerProfile && !isWizardOpen && (
+          {/* 6. Live Camera Presence Verification Callout (If trust score < 80%) */}
+          {sellerProfile && sellerProfile.is_onboarded && sellerProfile.trust_score < 80 && !isWizardOpen && !isAddProductOpen && !isVerificationOpen && (
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-emerald-950/70 via-slate-900 to-artisan-950/40 border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Camera className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                    Trust & Fraud Verification Pending (§12)
+                  </span>
+                </div>
+                <h3 className="text-base font-bold text-slate-100">
+                  Verify your Physical Studio with 3 Live Camera Captures
+                </h3>
+                <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                  Capture your workshop, active crafting hands, and finished pieces to unlock the gold <strong>Verified Studio</strong> badge and boost buyer inquiries.
+                </p>
+              </div>
+              <Button
+                onClick={() => setIsVerificationOpen(true)}
+                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-5 shrink-0 text-xs"
+              >
+                <Camera className="w-4 h-4 mr-1.5" />
+                Launch Live Camera Studio
+              </Button>
+            </div>
+          )}
+
+          {/* 7. Artisan Studio Overview Card */}
+          {sellerProfile && !isWizardOpen && !isVerificationOpen && (
             <Card className="p-6 sm:p-8 bg-slate-900 border-slate-800 shadow-xl space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
                 <div className="flex items-center gap-3">
@@ -271,17 +315,21 @@ export default function DashboardPage() {
                     <Hammer className="w-6 h-6" />
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <h2 className="text-lg font-bold text-slate-100">
                         {sellerProfile.business_name || "Artisan Craft Studio"}
                       </h2>
                       <Badge variant="primary" size="sm">
                         {sellerProfile.craft_category}
                       </Badge>
-                      {sellerProfile.is_onboarded && (
+                      {sellerProfile.trust_score >= 80 ? (
                         <Badge variant="success" size="sm">
                           <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Verified Studio
+                          Verified Studio ({sellerProfile.trust_score}%)
+                        </Badge>
+                      ) : (
+                        <Badge variant="warning" size="sm">
+                          Trust: {sellerProfile.trust_score}% (Unverified)
                         </Badge>
                       )}
                     </div>
@@ -292,7 +340,16 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+                <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsVerificationOpen(true)}
+                    className="text-xs text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+                  >
+                    <Camera className="w-3.5 h-3.5 mr-1.5" />
+                    Trust Studio
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -300,7 +357,7 @@ export default function DashboardPage() {
                     className="text-xs"
                   >
                     <Edit3 className="w-3.5 h-3.5 mr-1.5" />
-                    Update Studio Info
+                    Edit Studio Info
                   </Button>
                   <Button
                     size="sm"
@@ -442,21 +499,25 @@ export default function DashboardPage() {
               </Card>
 
               {/* Smart Photography Studio */}
-              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+              <Card
+                variant="interactive"
+                onClick={() => setIsVerificationOpen(true)}
+                className="p-6 space-y-3 cursor-pointer group hover:border-emerald-500/60"
+              >
                 <div className="flex items-start justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                     <Camera className="w-6 h-6" />
                   </div>
-                  <Badge variant="secondary" size="sm">Photo AI</Badge>
+                  <Badge variant="secondary" size="sm">Live Camera</Badge>
                 </div>
-                <h3 className="text-base font-bold text-slate-100 group-hover:text-ochre-300 transition-colors">
-                  2. AI Photography Assistant
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
+                  2. Live Camera & Trust Verification Studio
                 </h3>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Guided camera mode checks lighting, blur, and 5-angle craft angles to generate high-converting studio-grade photos.
+                  Real-time CV lighting & sharpness assistant. Capture workshop, process, and finished pieces to verify presence and earn trust badge.
                 </p>
-                <div className="pt-2 flex items-center text-xs font-semibold text-ochre-400 group-hover:translate-x-1 transition-transform">
-                  Launch Photo Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                <div className="pt-2 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                  Launch Live Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
                 </div>
               </Card>
 

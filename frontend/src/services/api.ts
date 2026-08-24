@@ -249,6 +249,28 @@ class ApiService {
     return this.request<import("@/types/product").Product[]>(`/products/marketplace${query}`);
   }
 
+  // Verification & Trust (§12 Live Camera Capture & Presence Verification)
+  async submitLiveEvidence(
+    data: import("@/types/verification").LiveEvidenceSubmissionPayload
+  ): Promise<import("@/types/verification").VerificationResponse> {
+    return this.request<import("@/types/verification").VerificationResponse>(
+      "/verification/submit-live-evidence",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  async getVerificationStatus(): Promise<import("@/types/verification").TrustSignalBreakdown> {
+    return this.request<import("@/types/verification").TrustSignalBreakdown>(
+      "/verification/status",
+      {},
+      true
+    );
+  }
+
   // Test Role Protected Routes
   async testSellerRoute(): Promise<{ message: string; data: any }> {
     return this.request<{ message: string; data: any }>("/auth/seller-only", {}, true);
