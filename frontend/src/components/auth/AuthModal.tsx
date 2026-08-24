@@ -186,7 +186,8 @@ export const AuthModal: React.FC = () => {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
+                  placeholder="+91 00000 00000"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
                 />
               </div>
             </div>
@@ -203,7 +204,7 @@ export const AuthModal: React.FC = () => {
           </form>
         )}
 
-        {/* Step 2: OTP Verification with dynamic 6-box '-' segmented display */}
+        {/* Step 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
         {step === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             {/* Dev Mode Notification */}
@@ -243,7 +244,7 @@ export const AuthModal: React.FC = () => {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
 
-                {/* 6 Box Display showing '-' when empty and typed digit when filled */}
+                {/* 6 Box Display showing translucent '0' when empty and typed digit when filled */}
                 <div className="grid grid-cols-6 gap-2 w-full max-w-xs">
                   {[0, 1, 2, 3, 4, 5].map((index) => {
                     const digit = otp[index];
@@ -256,11 +257,15 @@ export const AuthModal: React.FC = () => {
                           digit
                             ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
                             : isCurrent
-                            ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
-                            : "bg-slate-950 border-slate-800 text-slate-600"
+                            ? "bg-slate-950 border-artisan-500 text-slate-500/40 ring-2 ring-artisan-500/20"
+                            : "bg-slate-950 border-slate-800 text-slate-700/40"
                         }`}
                       >
-                        {digit ? digit : "-"}
+                        {digit ? (
+                          <span className="text-white">{digit}</span>
+                        ) : (
+                          <span className="text-slate-600/40 opacity-40">0</span>
+                        )}
                       </div>
                     );
                   })}

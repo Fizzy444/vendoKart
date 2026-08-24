@@ -521,7 +521,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    placeholder="+91 00000 00000"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
@@ -547,7 +548,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             </form>
           )}
 
-          {/* STEP 2: OTP Verification with dynamic 6-box '-' segmented display */}
+          {/* STEP 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
           {step === "otp" && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               {/* Dev Mode Notification Badge */}
@@ -572,7 +573,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 <span className="font-mono text-slate-200 font-semibold">{phone}</span>
               </div>
 
-              {/* 6-Digit Segmented Pin Display with - placeholders */}
+              {/* 6-Digit Segmented Pin Display with translucent 0 placeholders */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-3 text-center">
                   Enter 6-Digit Security Code
@@ -596,7 +597,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
 
-                  {/* 6 Segmented Boxes showing '-' when empty and typed digit when filled */}
+                  {/* 6 Segmented Boxes showing translucent '0' when empty and typed digit when filled */}
                   <div className="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-sm">
                     {[0, 1, 2, 3, 4, 5].map((index) => {
                       const digit = otp[index];
@@ -609,11 +610,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                             digit
                               ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
                               : isCurrent
-                              ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
-                              : "bg-slate-950 border-slate-800 text-slate-600"
+                              ? "bg-slate-950 border-artisan-500 text-slate-500/40 ring-2 ring-artisan-500/20"
+                              : "bg-slate-950 border-slate-800 text-slate-700/40"
                           }`}
                         >
-                          {digit ? digit : "-"}
+                          {digit ? (
+                            <span className="text-white">{digit}</span>
+                          ) : (
+                            <span className="text-slate-600/40 opacity-40">0</span>
+                          )}
                         </div>
                       );
                     })}
