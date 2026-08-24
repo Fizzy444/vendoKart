@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -11,7 +11,6 @@ import {
   Hammer,
   ShoppingBag,
   Phone,
-  KeyRound,
   User as UserIcon,
   Store,
   Sparkles,
@@ -44,6 +43,8 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const searchParams = useSearchParams();
   const { login } = useAuth();
 
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
   const queryRole = searchParams.get("role") as "seller" | "buyer" | null;
   const queryMode = searchParams.get("mode") as "login" | "register" | null;
 
@@ -52,7 +53,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [step, setStep] = useState<"form" | "otp">("form");
 
-  // Form Fields
+  // Form Fields (Empty defaults with no placeholders)
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
@@ -87,6 +88,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     }
   }, [resendCooldown]);
 
+  // Focus OTP input on transition
+  useEffect(() => {
+    if (step === "otp") {
+      setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 100);
+    }
+  }, [step]);
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -95,18 +105,17 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     try {
       const cleanPhone = phone.replace(/\s+/g, "");
       if (cleanPhone.length < 10) {
-        throw new Error("Please enter a valid mobile number with country code (e.g. +91 98765 43210)");
+        throw new Error("Please enter your complete mobile number with country code");
       }
 
       const response = await api.sendOtp(cleanPhone, channel);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
-        setOtp(response.dev_otp); // Auto-fill in dev mode
       }
       setResendCooldown(30);
       setStep("otp");
     } catch (err: any) {
-      setError(err.message || "Failed to send verification code. Please check backend connection.");
+      setError(err.message || "Failed to send verification code. Please check your network connection.");
     } finally {
       setIsLoading(false);
     }
@@ -320,7 +329,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 {step === "otp"
                   ? `Enter the 6-digit code sent via ${channel === "whatsapp" ? "WhatsApp" : "SMS"} to ${phone}`
                   : mode === "login"
-                  ? "Sign in with your registered phone number"
+                  ? "Sign in with your registered mobile number"
                   : `Join vendoKart as ${role === "seller" ? "an Artisan Seller" : "a Buyer"}`}
               </p>
             </div>
@@ -438,8 +447,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     required={mode === "register"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder={role === "seller" ? "e.g. Ramesh Kumar" : "e.g. Ananya Sen"}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
               </div>
@@ -459,8 +467,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                         type="text"
                         value={businessName}
                         onChange={(e) => setBusinessName(e.target.value)}
-                        placeholder="e.g. Ramesh Terracotta Studio"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                       />
                     </div>
                   </div>
@@ -517,8 +524,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     required
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
               </div>
@@ -588,7 +594,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
             </form>
           )}
 
-          {/* STEP 2: OTP Verification */}
+          {/* STEP 2: OTP Verification with dynamic 6-box '-' segmented display */}
           {step === "otp" && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               {/* Dev Mode Notification Badge */}
@@ -617,24 +623,52 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 <span className="font-mono text-slate-200 font-semibold">{phone}</span>
               </div>
 
+              {/* 6-Digit Segmented Pin Display with - placeholders */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-2">
-                  Enter 6-Digit Code
+                <label className="block text-xs font-medium text-slate-300 mb-3 text-center">
+                  Enter 6-Digit Security Code
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <KeyRound className="w-4 h-4" />
-                  </div>
+
+                <div className="relative flex justify-center items-center">
+                  {/* Invisible capture input */}
                   <input
+                    ref={otpInputRef}
                     type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     maxLength={6}
                     required
                     autoFocus
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                    placeholder="123456"
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-600 text-center tracking-[0.5em] text-xl font-mono font-bold focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                      setOtp(val);
+                    }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
+
+                  {/* 6 Segmented Boxes showing '-' when empty and typed digit when filled */}
+                  <div className="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-sm">
+                    {[0, 1, 2, 3, 4, 5].map((index) => {
+                      const digit = otp[index];
+                      const isCurrent = otp.length === index;
+                      return (
+                        <div
+                          key={index}
+                          onClick={() => otpInputRef.current?.focus()}
+                          className={`h-14 sm:h-16 rounded-2xl border flex items-center justify-center text-xl sm:text-2xl font-mono font-bold transition-all select-none ${
+                            digit
+                              ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
+                              : isCurrent
+                              ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
+                              : "bg-slate-950 border-slate-800 text-slate-600"
+                          }`}
+                        >
+                          {digit ? digit : "-"}
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -662,6 +696,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               <Button
                 type="submit"
                 isLoading={isLoading}
+                disabled={otp.length < 6}
                 className={`w-full py-3 ${
                   role === "buyer" ? "bg-ochre-600 hover:bg-ochre-500 focus:ring-ochre-500" : ""
                 }`}

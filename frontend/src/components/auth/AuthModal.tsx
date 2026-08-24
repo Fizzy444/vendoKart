@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/Badge";
 import {
   X,
   Phone,
-  KeyRound,
   Hammer,
   ShoppingBag,
   Sparkles,
@@ -22,6 +21,8 @@ import {
 export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, closeAuthModal, authModalRole, login } = useAuth();
 
+  const otpInputRef = useRef<HTMLInputElement>(null);
+
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [role, setRole] = useState<"seller" | "buyer">(authModalRole || "seller");
   const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
@@ -33,11 +34,20 @@ export const AuthModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Sync initial role when opening modal
-  React.useEffect(() => {
+  useEffect(() => {
     if (authModalRole) {
       setRole(authModalRole);
     }
   }, [authModalRole]);
+
+  // Focus OTP on transition
+  useEffect(() => {
+    if (step === "otp") {
+      setTimeout(() => {
+        otpInputRef.current?.focus();
+      }, 100);
+    }
+  }, [step]);
 
   if (!isAuthModalOpen) return null;
 
@@ -48,12 +58,11 @@ export const AuthModal: React.FC = () => {
     try {
       const cleanPhone = phone.replace(/\s+/g, "");
       if (cleanPhone.length < 10) {
-        throw new Error("Please enter a valid phone number");
+        throw new Error("Please enter your complete mobile number with country code");
       }
       const response = await api.sendOtp(cleanPhone, channel);
       if (response.is_dev_mode && response.dev_otp) {
         setDevOtpHint(response.dev_otp);
-        setOtp(response.dev_otp); // Auto-fill in dev mode for maximum developer convenience!
       }
       setStep("otp");
     } catch (err: any) {
@@ -105,7 +114,7 @@ export const AuthModal: React.FC = () => {
               ? role === "seller"
                 ? "Artisan / Seller Portal"
                 : "Buyer & Collector Sign In"
-              : "Verify Phone OTP"}
+              : "Verify Security Code"}
           </h2>
           <p className="text-sm text-slate-400 mt-1">
             {step === "phone"
@@ -162,8 +171,7 @@ export const AuthModal: React.FC = () => {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={role === "seller" ? "e.g. Ramesh Pottery Works" : "e.g. Priya Sharma"}
-                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                className="w-full px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
               />
             </div>
 
@@ -181,8 +189,7 @@ export const AuthModal: React.FC = () => {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
                 />
               </div>
             </div>
@@ -234,7 +241,7 @@ export const AuthModal: React.FC = () => {
           </form>
         )}
 
-        {/* Step 2: OTP Verification */}
+        {/* Step 2: OTP Verification with dynamic 6-box '-' segmented display */}
         {step === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             {/* Dev Mode Notification */}
@@ -250,24 +257,52 @@ export const AuthModal: React.FC = () => {
               </div>
             )}
 
+            {/* 6-Digit Segmented Box UI */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                6-Digit Security Code
+              <label className="block text-xs font-medium text-slate-300 mb-2.5 text-center">
+                Enter 6-Digit Security Code
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <KeyRound className="w-4 h-4" />
-                </div>
+              
+              <div className="relative flex justify-center items-center">
+                {/* Hidden input capture */}
                 <input
+                  ref={otpInputRef}
                   type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   maxLength={6}
                   required
                   autoFocus
                   value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="123456"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 text-center tracking-[0.5em] text-lg font-mono font-bold focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 6);
+                    setOtp(val);
+                  }}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
+
+                {/* 6 Box Display showing '-' when empty and typed digit when filled */}
+                <div className="grid grid-cols-6 gap-2 w-full max-w-xs">
+                  {[0, 1, 2, 3, 4, 5].map((index) => {
+                    const digit = otp[index];
+                    const isCurrent = otp.length === index;
+                    return (
+                      <div
+                        key={index}
+                        onClick={() => otpInputRef.current?.focus()}
+                        className={`h-13 py-3 rounded-xl border flex items-center justify-center text-xl font-mono font-bold transition-all select-none ${
+                          digit
+                            ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
+                            : isCurrent
+                            ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
+                            : "bg-slate-950 border-slate-800 text-slate-600"
+                        }`}
+                      >
+                        {digit ? digit : "-"}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -288,7 +323,13 @@ export const AuthModal: React.FC = () => {
               </button>
             </div>
 
-            <Button type="submit" isLoading={isLoading} className="w-full mt-2" size="lg">
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              disabled={otp.length < 6}
+              className="w-full mt-2"
+              size="lg"
+            >
               <CheckCircle2 className="w-4 h-4 mr-1.5" />
               Verify & Enter Platform
             </Button>
