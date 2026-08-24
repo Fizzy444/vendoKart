@@ -411,7 +411,7 @@ export function AddProductModal({
               <input
                 type="number"
                 min="0"
-                step="10"
+                step="1"
                 value={materialCost}
                 onChange={(e) => setMaterialCost(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
@@ -426,7 +426,7 @@ export function AddProductModal({
               <input
                 type="number"
                 min="0"
-                step="50"
+                step="1"
                 value={labourRate}
                 onChange={(e) => setLabourRate(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-emerald-500"
@@ -440,8 +440,8 @@ export function AddProductModal({
               </label>
               <input
                 type="number"
-                min="0.5"
-                step="0.5"
+                min="0.1"
+                step="any"
                 value={dailyCapacity}
                 onChange={(e) => setDailyCapacity(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-blue-500"
@@ -458,6 +458,7 @@ export function AddProductModal({
               <input
                 type="number"
                 min="0"
+                step="1"
                 value={packagingCost}
                 onChange={(e) => setPackagingCost(Number(e.target.value))}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
@@ -474,7 +475,7 @@ export function AddProductModal({
                 type="range"
                 min="10"
                 max="60"
-                step="5"
+                step="1"
                 value={targetMargin}
                 onChange={(e) => setTargetMargin(Number(e.target.value))}
                 className="w-full accent-emerald-500 h-2 bg-slate-800 rounded-lg cursor-pointer"
@@ -551,10 +552,13 @@ export function AddProductModal({
                 <span className="absolute left-3.5 top-2.5 text-xs text-slate-400 font-bold">₹</span>
                 <input
                   type="number"
-                  min={minFloorPrice}
-                  step="5"
+                  min="1"
+                  step="1"
                   value={customPrice !== null ? customPrice : recommendedPrice}
-                  onChange={(e) => setCustomPrice(Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomPrice(val === "" ? null : Number(val));
+                  }}
                   className={`w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-slate-900 border text-slate-100 text-sm font-bold focus:outline-none ${
                     effectivePrice < minFloorPrice
                       ? "border-red-500 focus:border-red-500 text-red-400"
