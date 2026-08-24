@@ -57,7 +57,6 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [craftCategory, setCraftCategory] = useState<string>("Handloom & Textiles");
   const [buyerInterest, setBuyerInterest] = useState<string>("Home Decor & Crafts");
   const [otp, setOtp] = useState<string>("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
 
   // Status
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -111,10 +110,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
       }
 
       const fullPhone = getFullPhone();
-      const response = await api.sendOtp(fullPhone);
-      if (response.is_dev_mode && response.dev_otp) {
-        setDevOtpHint(response.dev_otp);
-      }
+      await api.sendOtp(fullPhone);
       setResendCooldown(30);
       setStep("otp");
     } catch (err: any) {
@@ -564,19 +560,6 @@ export const AuthCard: React.FC<AuthCardProps> = ({
           {/* STEP 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
           {step === "otp" && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
-              {/* Dev Mode Notification Badge */}
-              {devOtpHint && (
-                <div className="p-3.5 bg-ochre-500/10 border border-ochre-500/20 rounded-2xl text-xs text-ochre-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <Sparkles className="w-4 h-4 text-ochre-400" />
-                    Dev Sandbox Mock OTP:
-                  </span>
-                  <Badge variant="secondary" size="sm" className="font-mono font-bold tracking-wider">
-                    {devOtpHint}
-                  </Badge>
-                </div>
-              )}
-
               {/* SMS Notification Banner */}
               <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                 <span className="text-slate-400 flex items-center gap-1.5">

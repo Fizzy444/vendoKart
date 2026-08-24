@@ -40,10 +40,10 @@ class Settings(BaseSettings):
     # OTP & SMS Gateway (2Factor.in)
     OTP_PROVIDER: str = "2factor"
     OTP_EXPIRY_SECONDS: int = 300
-    DEV_MOCK_OTP: str = "123456"
 
     # 2Factor.in Configuration (Loaded securely from .env)
     TWOFACTOR_API_KEY: str = ""
+    TWOFACTOR_TEMPLATE_NAME: str = "VENDOKART_OTP"
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [

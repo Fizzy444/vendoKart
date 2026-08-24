@@ -4,13 +4,11 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import {
   X,
   Phone,
   Hammer,
   ShoppingBag,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   ArrowRight,
@@ -26,7 +24,6 @@ export const AuthModal: React.FC = () => {
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,10 +60,7 @@ export const AuthModal: React.FC = () => {
         throw new Error("Please enter your 10-digit mobile number");
       }
       const fullPhone = getFullPhone();
-      const response = await api.sendOtp(fullPhone);
-      if (response.is_dev_mode && response.dev_otp) {
-        setDevOtpHint(response.dev_otp);
-      }
+      await api.sendOtp(fullPhone);
       setStep("otp");
     } catch (err: any) {
       setError(err.message || "Failed to send verification code");
@@ -86,7 +80,6 @@ export const AuthModal: React.FC = () => {
       // Reset form state
       setStep("phone");
       setOtp("");
-      setDevOtpHint(null);
     } catch (err: any) {
       setError(err.message || "Invalid OTP code");
     } finally {
@@ -221,19 +214,6 @@ export const AuthModal: React.FC = () => {
         {/* Step 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
         {step === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            {/* Dev Mode Notification */}
-            {devOtpHint && (
-              <div className="p-3 bg-ochre-500/10 border border-ochre-500/20 rounded-xl text-xs text-ochre-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Sparkles className="w-3.5 h-3.5 text-ochre-400" />
-                  Dev Mode Active:
-                </span>
-                <Badge variant="secondary" size="sm">
-                  Mock OTP: {devOtpHint}
-                </Badge>
-              </div>
-            )}
-
             {/* 6-Digit Segmented Box UI */}
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-2.5 text-center">

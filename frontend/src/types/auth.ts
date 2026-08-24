@@ -37,8 +37,6 @@ export interface AuthResponse {
 export interface OTPResponse {
   message: string;
   phone: string;
-  is_dev_mode: boolean;
-  dev_otp?: string;
 }
 
 export interface HealthResponse {

@@ -11,8 +11,6 @@ class OTPRequest(BaseModel):
 class OTPResponse(BaseModel):
     message: str
     phone: str
-    is_dev_mode: bool = False
-    dev_otp: Optional[str] = None
 
 
 class OTPVerifyRequest(BaseModel):

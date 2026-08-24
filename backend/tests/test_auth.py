@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from app.services.otp_service import _in_memory_otp_cache
 
 
 @pytest.mark.asyncio
@@ -14,8 +15,12 @@ async def test_otp_flow_and_authentication(async_client: AsyncClient):
     assert send_resp.status_code == 200
     send_data = send_resp.json()
     assert send_data["phone"] == test_phone
-    assert send_data["is_dev_mode"] is True
-    assert send_data["dev_otp"] == "123456"
+    assert "OTP sent successfully" in send_data["message"]
+
+    # Retrieve the generated random OTP from cache for testing verification
+    assert test_phone in _in_memory_otp_cache
+    generated_otp, _ = _in_memory_otp_cache[test_phone]
+    assert len(generated_otp) == 6
 
     # 2. Verify with wrong OTP
     bad_verify_resp = await async_client.post(
@@ -24,10 +29,10 @@ async def test_otp_flow_and_authentication(async_client: AsyncClient):
     )
     assert bad_verify_resp.status_code == 400
 
-    # 3. Verify with valid OTP
+    # 3. Verify with valid random OTP
     good_verify_resp = await async_client.post(
         "/api/v1/auth/otp/verify",
-        json={"phone": test_phone, "otp": "123456", "role": "seller", "name": "Ramesh Artisan"},
+        json={"phone": test_phone, "otp": generated_otp, "role": "seller", "name": "Ramesh Artisan"},
     )
     assert good_verify_resp.status_code == 200
     auth_data = good_verify_resp.json()

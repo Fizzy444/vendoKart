@@ -23,15 +23,12 @@ router = APIRouter()
 @router.post("/otp/send", response_model=OTPResponse)
 async def send_otp(request: OTPRequest):
     """
-    Send OTP code to the provided phone number.
-    In development mode, returns the mock OTP code directly for convenience.
+    Generate and send 6-digit SMS OTP code via 2Factor.in.
     """
-    otp, is_dev = await OTPService.generate_otp(request.phone)
+    await OTPService.generate_otp(request.phone)
     return OTPResponse(
-        message="OTP sent successfully",
+        message="OTP sent successfully via SMS",
         phone=request.phone,
-        is_dev_mode=is_dev,
-        dev_otp=otp if is_dev else None,
     )
 
 
