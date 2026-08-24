@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   CraftCategory,
   SellerLocation,
@@ -25,10 +25,10 @@ import {
   ChevronRight,
   ChevronLeft,
   Navigation,
-  Info,
   Layers,
-  BookOpen,
   Check,
+  Search,
+  Crosshair,
 } from "lucide-react";
 
 interface SellerProfileWizardProps {
@@ -57,32 +57,32 @@ const SELLER_TYPES: { label: string; value: SellerType; desc: string }[] = [
   {
     label: "Individual Artisan",
     value: "individual_artisan",
-    desc: "Solo craftsperson creating handcrafted goods directly",
+    desc: "Single craft practitioner or master maker working independently.",
   },
   {
-    label: "Family Workshop",
+    label: "Family Business",
     value: "family_business",
-    desc: "Family-run traditional craft unit passing down heritage skills",
+    desc: "Multi-generational household passing craft techniques across generations.",
   },
   {
     label: "Artisan Cooperative",
     value: "cooperative",
-    desc: "Registered artisan cooperative pooling collective production",
+    desc: "Registered cooperative cluster pooling raw materials and production capacity.",
   },
   {
     label: "Self-Help Group (SHG)",
     value: "self_help_group",
-    desc: "Community or women's artisan producer group",
+    desc: "Community self-help group sharing equipment and joint order fulfillment.",
   },
   {
     label: "Rural Producer Group",
     value: "rural_producer_group",
-    desc: "Cluster of village craftsmen collaborating on bulk orders",
+    desc: "Aggregated cluster of village artisans under unified local supervision.",
   },
   {
-    label: "Small Retailer / Aggregator",
+    label: "Small Retail Artisan",
     value: "small_retail",
-    desc: "Local merchant marketing and selling artisan goods",
+    desc: "Studio maker retailing directly from workshop storefront.",
   },
 ];
 
@@ -90,24 +90,68 @@ const WORKSPACE_TYPES: { label: string; value: WorkspaceType; desc: string }[] =
   {
     label: "Home Workshop",
     value: "home_workshop",
-    desc: "Traditional workspace set up at home or courtyard",
+    desc: "Craft space integrated directly in home or village residence.",
   },
   {
     label: "Dedicated Studio",
     value: "dedicated_studio",
-    desc: "Independent craft workshop or production shed",
+    desc: "Separate standalone workshop premises with dedicated craft stations.",
   },
   {
-    label: "Community Craft Shed",
+    label: "Community Shed",
     value: "community_shed",
-    desc: "Shared village cluster workspace with shared tools",
+    desc: "Shared community infrastructure (e.g. collective pit looms, common kilns).",
   },
   {
     label: "Cooperative Center",
     value: "cooperative_center",
-    desc: "Formal processing and weaving/production center",
+    desc: "Cluster facility with shared raw material storage and dispatch desks.",
   },
 ];
+
+// Helper to parse either DMS coordinates (11°03'35.5"N 76°55'56.7"E) or Decimals (11.059861, 76.932417)
+function parseCoordinateInput(input: string): { lat: number; lon: number } | null {
+  const clean = input.trim();
+  if (!clean) return null;
+
+  // 1. DMS Regex: e.g. 11°03'35.5"N 76°55'56.7"E or 11° 3' 35.5" N, 76° 55' 56.7" E
+  const dmsRegex =
+    /(\d+)\s*°\s*(\d+)\s*['\u2032]?\s*([\d.]+)\s*["\u2033]?\s*([NSEWnsew])\s*[, ]\s*(\d+)\s*°\s*(\d+)\s*['\u2032]?\s*([\d.]+)\s*["\u2033]?\s*([NSEWnsew])/;
+  const dmsMatch = clean.match(dmsRegex);
+  if (dmsMatch) {
+    let lat =
+      parseInt(dmsMatch[1], 10) +
+      parseInt(dmsMatch[2], 10) / 60 +
+      parseFloat(dmsMatch[3]) / 3600;
+    if (dmsMatch[4].toUpperCase() === "S") lat = -lat;
+
+    let lon =
+      parseInt(dmsMatch[5], 10) +
+      parseInt(dmsMatch[6], 10) / 60 +
+      parseFloat(dmsMatch[7]) / 3600;
+    if (dmsMatch[8].toUpperCase() === "W") lon = -lon;
+
+    return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) };
+  }
+
+  // 2. Decimal: e.g. 11.059861, 76.932417 or 11.059861 76.932417
+  const decRegex = /([-+]?\d{1,2}(?:\.\d+)?)[,\s]+([-+]?\d{1,3}(?:\.\d+)?)/;
+  const decMatch = clean.match(decRegex);
+  if (decMatch) {
+    const lat = parseFloat(decMatch[1]);
+    const lon = parseFloat(decMatch[2]);
+    if (
+      !isNaN(lat) &&
+      !isNaN(lon) &&
+      Math.abs(lat) <= 90 &&
+      Math.abs(lon) <= 180
+    ) {
+      return { lat: Number(lat.toFixed(6)), lon: Number(lon.toFixed(6)) };
+    }
+  }
+
+  return null;
+}
 
 export function SellerProfileWizard({
   initialProfile,
@@ -116,13 +160,17 @@ export function SellerProfileWizard({
   onSuccess,
 }: SellerProfileWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isLocating, setIsLocating] = useState(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Form states
-  const [artisanName, setArtisanName] = useState(initialProfile?.artisan_name || "");
-  const [businessName, setBusinessName] = useState(initialProfile?.business_name || "");
+  // Form State - Step 1: Craft & Story
+  const [artisanName, setArtisanName] = useState(
+    initialProfile?.artisan_name || ""
+  );
+  const [businessName, setBusinessName] = useState(
+    initialProfile?.business_name || ""
+  );
   const [bio, setBio] = useState(initialProfile?.bio || "");
   const [craftCategory, setCraftCategory] = useState<CraftCategory>(
     initialProfile?.craft_category || "Bamboo Craft"
@@ -137,7 +185,7 @@ export function SellerProfileWizard({
     initialProfile?.seller_type || "individual_artisan"
   );
 
-  // Capacity & Workspace
+  // Form State - Step 2: Capacity & Workspace
   const [workspaceType, setWorkspaceType] = useState<WorkspaceType>(
     initialProfile?.workspace_type || "home_workshop"
   );
@@ -154,13 +202,14 @@ export function SellerProfileWizard({
     initialProfile?.lead_time_days ?? 3
   );
 
-  // Location
+  // Form State - Step 3: Location
   const [latitude, setLatitude] = useState<number | undefined>(
     initialProfile?.location?.latitude
   );
   const [longitude, setLongitude] = useState<number | undefined>(
     initialProfile?.location?.longitude
   );
+  const [customCoordsInput, setCustomCoordsInput] = useState<string>("");
   const [address, setAddress] = useState(initialProfile?.location?.address || "");
   const [city, setCity] = useState(initialProfile?.location?.city || "");
   const [district, setDistrict] = useState(initialProfile?.location?.district || "");
@@ -168,7 +217,7 @@ export function SellerProfileWizard({
   const [pincode, setPincode] = useState(initialProfile?.location?.pincode || "");
 
   // Sync state if initialProfile changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialProfile) {
       setArtisanName(initialProfile.artisan_name || "");
       setBusinessName(initialProfile.business_name || "");
@@ -196,6 +245,104 @@ export function SellerProfileWizard({
 
   if (!isOpen) return null;
 
+  // Unified reverse-geocoding engine for Indian coordinates
+  const performReverseGeocode = async (lat: number, lon: number) => {
+    setIsLocating(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
+        {
+          headers: {
+            "Accept-Language": "en",
+          },
+        }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        const addr = data.address || {};
+        const displayName = data.display_name || "";
+
+        const detectedState = addr.state || "";
+        const detectedPincode = addr.postcode
+          ? addr.postcode.replace(/\D/g, "").slice(0, 6)
+          : "";
+
+        const detectedCity =
+          addr.city ||
+          addr.town ||
+          addr.municipality ||
+          addr.village ||
+          addr.city_district ||
+          addr.suburb ||
+          "";
+
+        const detectedDistrict =
+          addr.state_district ||
+          addr.district ||
+          addr.county ||
+          detectedCity ||
+          "";
+
+        // Build rich, complete street/locality address
+        const localKeys = [
+          "house_number",
+          "building",
+          "house_name",
+          "road",
+          "street",
+          "neighbourhood",
+          "residential",
+          "suburb",
+          "city_district",
+          "county",
+          "village",
+          "hamlet",
+        ];
+
+        const parts: string[] = [];
+        const seen = new Set<string>();
+
+        for (const key of localKeys) {
+          const val = addr[key];
+          if (
+            val &&
+            !seen.has(val.toLowerCase()) &&
+            val.toLowerCase() !== detectedCity.toLowerCase() &&
+            val.toLowerCase() !== detectedState.toLowerCase()
+          ) {
+            seen.add(val.toLowerCase());
+            parts.push(val);
+          }
+        }
+
+        let detectedStreet = parts.join(", ");
+
+        if (!detectedStreet || detectedStreet.length < 4) {
+          const rawParts = displayName.split(",").map((p: string) => p.trim());
+          const filtered = rawParts.filter(
+            (p: string) =>
+              p.toLowerCase() !== detectedState.toLowerCase() &&
+              p.toLowerCase() !== "india" &&
+              p !== detectedPincode
+          );
+          detectedStreet =
+            filtered.slice(0, 3).join(", ") || displayName.split(",")[0] || "";
+        }
+
+        if (detectedStreet) setAddress(detectedStreet);
+        if (detectedCity) setCity(detectedCity);
+        if (detectedDistrict) setDistrict(detectedDistrict);
+        if (detectedState) setStateName(detectedState);
+        if (detectedPincode) setPincode(detectedPincode);
+      }
+    } catch (err) {
+      console.warn("Reverse geocode error:", err);
+    } finally {
+      setIsLocating(false);
+    }
+  };
+
+  // Browser Geolocation capture
   const handleCaptureLocation = () => {
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser");
@@ -208,98 +355,7 @@ export function SellerProfileWizard({
         const lon = Number(pos.coords.longitude.toFixed(6));
         setLatitude(lat);
         setLongitude(lon);
-
-        // Auto-fill address fields via reverse geocoding
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`,
-            {
-              headers: {
-                "Accept-Language": "en",
-              },
-            }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const addr = data.address || {};
-            const displayName = data.display_name || "";
-
-            const detectedState = addr.state || "";
-            const detectedPincode = addr.postcode ? addr.postcode.replace(/\D/g, "").slice(0, 6) : "";
-
-            const detectedCity =
-              addr.city ||
-              addr.town ||
-              addr.municipality ||
-              addr.village ||
-              addr.city_district ||
-              addr.suburb ||
-              "";
-
-            const detectedDistrict =
-              addr.state_district ||
-              addr.district ||
-              addr.county ||
-              detectedCity ||
-              "";
-
-            // Build rich, complete street/locality address
-            const localKeys = [
-              "house_number",
-              "building",
-              "house_name",
-              "road",
-              "street",
-              "neighbourhood",
-              "residential",
-              "suburb",
-              "city_district",
-              "county",
-              "village",
-              "hamlet",
-            ];
-
-            const parts: string[] = [];
-            const seen = new Set<string>();
-
-            for (const key of localKeys) {
-              const val = addr[key];
-              if (
-                val &&
-                !seen.has(val.toLowerCase()) &&
-                val.toLowerCase() !== detectedCity.toLowerCase() &&
-                val.toLowerCase() !== detectedState.toLowerCase()
-              ) {
-                seen.add(val.toLowerCase());
-                parts.push(val);
-              }
-            }
-
-            let detectedStreet = parts.join(", ");
-
-            if (!detectedStreet || detectedStreet.length < 4) {
-              // Fallback: take leading components of display_name before city/state
-              const rawParts = displayName.split(",").map((p: string) => p.trim());
-              const filtered = rawParts.filter(
-                (p: string) =>
-                  p.toLowerCase() !== detectedState.toLowerCase() &&
-                  p.toLowerCase() !== "india" &&
-                  p !== detectedPincode
-              );
-              detectedStreet = filtered.slice(0, 3).join(", ") || displayName.split(",")[0] || "";
-            }
-
-            if (detectedStreet) setAddress(detectedStreet);
-            if (detectedCity) setCity(detectedCity);
-            if (detectedDistrict) setDistrict(detectedDistrict);
-            if (detectedState) setStateName(detectedState);
-            if (detectedPincode) setPincode(detectedPincode);
-          }
-        } catch (geocodeErr) {
-          console.warn("Reverse geocoding error:", geocodeErr);
-        } finally {
-          setIsLocating(false);
-        }
+        await performReverseGeocode(lat, lon);
       },
       (err) => {
         setIsLocating(false);
@@ -307,6 +363,28 @@ export function SellerProfileWizard({
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  // Manual Coordinate / DMS lookup handler
+  const handleLookupCustomCoords = async () => {
+    if (!customCoordsInput.trim()) {
+      if (latitude && longitude) {
+        await performReverseGeocode(latitude, longitude);
+      }
+      return;
+    }
+
+    const parsed = parseCoordinateInput(customCoordsInput);
+    if (!parsed) {
+      alert(
+        "Could not parse coordinates. Please enter DMS like 11°03'35.5\"N 76°55'56.7\"E or decimals like 11.059861, 76.932417"
+      );
+      return;
+    }
+
+    setLatitude(parsed.lat);
+    setLongitude(parsed.lon);
+    await performReverseGeocode(parsed.lat, parsed.lon);
   };
 
   const handleSave = async () => {
@@ -334,15 +412,14 @@ export function SellerProfileWizard({
       bio: bio.trim() || undefined,
       craft_category: craftCategory,
       craft_specialties: specialties,
-      experience_years: Number(experienceYears) || 1,
+      experience_years: experienceYears,
       seller_type: sellerType,
       workspace_type: workspaceType,
-      number_of_workers: Math.max(1, Number(numberOfWorkers) || 1),
-      daily_labour_rate_inr: Math.max(0, Number(dailyLabourRate) || 400),
-      daily_capacity_units: Math.max(1, Number(dailyCapacityUnits) || 5),
-      lead_time_days: Math.max(0, Number(leadTimeDays) || 3),
+      number_of_workers: Math.max(1, numberOfWorkers),
+      daily_labour_rate_inr: Math.max(0, dailyLabourRate),
+      daily_capacity_units: Math.max(1, dailyCapacityUnits),
+      lead_time_days: Math.max(0, leadTimeDays),
       location: locationObj,
-      is_onboarded: true,
     };
 
     try {
@@ -350,99 +427,99 @@ export function SellerProfileWizard({
       onSuccess(updated);
       onClose();
     } catch (err: any) {
-      setErrorMsg(err.message || "Failed to save profile. Please try again.");
+      setErrorMsg(err.message || "Failed to update profile. Please try again.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Unit labor cost preview calculation
   const computedUnitLaborCost =
     dailyCapacityUnits > 0
       ? ((dailyLabourRate * numberOfWorkers) / dailyCapacityUnits).toFixed(0)
       : "0";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
-      <Card className="max-w-2xl w-full bg-slate-900 border-slate-800 shadow-2xl p-0 overflow-hidden my-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
+      <Card className="max-w-2xl w-full bg-slate-900 border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 relative">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-artisan-500/20 text-artisan-400 flex items-center justify-center border border-artisan-500/30">
+            <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
               <Hammer className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-                Artisan Studio & Workspace Profile
-                <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded-full bg-artisan-500/20 text-artisan-300 border border-artisan-500/30">
-                  Stage 1
-                </span>
+                Artisan Studio & Workspace Setup
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Set up your craft domain, workshop capacity, and location for buyer matching.
+              <p className="text-xs text-slate-400">
+                Stage 1 — Verify your craft specialty, production capacity, and workshop location.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200 p-2 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-slate-400 hover:text-slate-200 p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Step Indicator */}
-        <div className="grid grid-cols-3 border-b border-slate-800 text-xs font-semibold">
+        <div className="grid grid-cols-3 border-b border-slate-800 bg-slate-950/30 text-xs">
           <button
             type="button"
             onClick={() => setStep(1)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 border-b-2 transition-colors ${
+            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
               step === 1
-                ? "border-artisan-500 text-artisan-400 bg-artisan-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-300"
+                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
               1
             </span>
-            <span>Craft & Story</span>
+            Craft & Story
           </button>
+
           <button
             type="button"
             onClick={() => setStep(2)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 border-b-2 transition-colors ${
+            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
               step === 2
-                ? "border-artisan-500 text-artisan-400 bg-artisan-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-300"
+                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
               2
             </span>
-            <span>Workshop & Capacity</span>
+            Capacity & Pricing
           </button>
+
           <button
             type="button"
             onClick={() => setStep(3)}
-            className={`py-3 px-4 flex items-center justify-center gap-2 border-b-2 transition-colors ${
+            className={`py-3 px-4 flex items-center justify-center gap-2 font-medium border-b-2 transition-all ${
               step === 3
-                ? "border-artisan-500 text-artisan-400 bg-artisan-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-300"
+                ? "border-artisan-500 text-artisan-300 bg-artisan-500/5 font-semibold"
+                : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px]">
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold bg-slate-800">
               3
             </span>
-            <span>Location & Presence</span>
+            Location & Presence
           </button>
         </div>
 
-        {/* Form Body */}
-        <div className="p-6 space-y-5 max-h-[65vh] overflow-y-auto">
+        {/* Modal Body / Scrollable Form */}
+        <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {errorMsg && (
-            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
-              <Info className="w-4 h-4 shrink-0" />
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-center justify-between">
               <span>{errorMsg}</span>
+              <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-300">
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
@@ -452,7 +529,7 @@ export function SellerProfileWizard({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Artisan / Lead Name *
+                    Lead Artisan Full Name *
                   </label>
                   <input
                     type="text"
@@ -462,48 +539,16 @@ export function SellerProfileWizard({
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Studio / Business Name
+                    Workshop / Brand Business Name
                   </label>
                   <input
                     type="text"
                     value={businessName}
                     onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="e.g. Ganga Terracotta Studio"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Primary Craft Domain *
-                  </label>
-                  <select
-                    value={craftCategory}
-                    onChange={(e) => setCraftCategory(e.target.value as CraftCategory)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 cursor-pointer"
-                  >
-                    {CRAFT_CATEGORIES.map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Years of Experience
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="70"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(Number(e.target.value))}
+                    placeholder="e.g. Chandra Heritage Weaves"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
                 </div>
@@ -511,96 +556,114 @@ export function SellerProfileWizard({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Craft Specialties & Products (comma separated)
+                  Primary Craft Category *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {CRAFT_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      type="button"
+                      onClick={() => setCraftCategory(cat)}
+                      className={`p-2.5 rounded-xl text-xs font-medium border text-left transition-all ${
+                        craftCategory === cat
+                          ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  Specialties & Products (comma separated)
                 </label>
                 <input
                   type="text"
                   value={specialtiesText}
                   onChange={(e) => setSpecialtiesText(e.target.value)}
-                  placeholder="e.g. Storage Baskets, Dining Table Mats, Floor Lamps"
+                  placeholder="e.g. Bamboo lamps, cane baskets, fruit bowls, hand-carved trays"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Artisan Structure / Producer Type
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {SELLER_TYPES.map((st) => (
-                    <button
-                      key={st.value}
-                      type="button"
-                      onClick={() => setSellerType(st.value)}
-                      className={`p-3 rounded-xl text-left border transition-all ${
-                        sellerType === st.value
-                          ? "bg-artisan-500/15 border-artisan-500 text-artisan-200"
-                          : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700"
-                      }`}
-                    >
-                      <div className="font-semibold text-xs text-slate-200 flex items-center justify-between">
-                        <span>{st.label}</span>
-                        {sellerType === st.value && (
-                          <Check className="w-3.5 h-3.5 text-artisan-400" />
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                        {st.desc}
-                      </p>
-                    </button>
-                  ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Years of Craft Experience
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="80"
+                    value={experienceYears}
+                    onChange={(e) => setExperienceYears(Number(e.target.value))}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    Artisan Operational Structure
+                  </label>
+                  <select
+                    value={sellerType}
+                    onChange={(e) => setSellerType(e.target.value as SellerType)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
+                  >
+                    {SELLER_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Artisan Story & Heritage Bio
+                  Heritage Story & Craft Journey
                 </label>
                 <textarea
                   rows={3}
                   value={bio}
                   onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tell buyers about your craftsmanship heritage, traditional techniques, natural materials used, and community..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 resize-none leading-relaxed"
+                  placeholder="Share the generational heritage of your technique, traditional materials sourced, and family traditions..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 resize-none"
                 />
               </div>
             </div>
           )}
 
-          {/* STEP 2: WORKSPACE & CAPACITY */}
+          {/* STEP 2: CAPACITY & WORKSPACE */}
           {step === 2 && (
             <div className="space-y-4 animate-in fade-in duration-200">
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  Workspace Environment
+                  Workspace Facility Type
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {WORKSPACE_TYPES.map((wt) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {WORKSPACE_TYPES.map((w) => (
                     <button
-                      key={wt.value}
+                      key={w.value}
                       type="button"
-                      onClick={() => setWorkspaceType(wt.value)}
+                      onClick={() => setWorkspaceType(w.value)}
                       className={`p-3 rounded-xl text-left border transition-all ${
-                        workspaceType === wt.value
-                          ? "bg-artisan-500/15 border-artisan-500 text-artisan-200"
-                          : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700"
+                        workspaceType === w.value
+                          ? "bg-artisan-500/20 border-artisan-500 text-artisan-300 shadow-sm"
+                          : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
                       }`}
                     >
-                      <div className="font-semibold text-xs text-slate-200 flex items-center justify-between">
-                        <span>{wt.label}</span>
-                        {workspaceType === wt.value && (
-                          <Check className="w-3.5 h-3.5 text-artisan-400" />
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 mt-1 leading-snug">
-                        {wt.desc}
-                      </p>
+                      <div className="text-xs font-bold text-slate-200">{w.label}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">{w.desc}</div>
                     </button>
                   ))}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-artisan-400" />
@@ -696,36 +759,105 @@ export function SellerProfileWizard({
           {/* STEP 3: LOCATION & PRESENCE */}
           {step === 3 && (
             <div className="space-y-4 animate-in fade-in duration-200">
+              {/* Option A: 1-Click Device GPS */}
               <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                    <MapPin className="w-4 h-4 text-artisan-400" />
-                    <span>Live GPS Location Capture (§12 Verification)</span>
+                    <Navigation className="w-4 h-4 text-artisan-400" />
+                    <span>Device GPS Auto-Capture</span>
                   </div>
                   <p className="text-[11px] text-slate-400 mt-0.5">
                     {latitude && longitude
-                      ? `Coordinates: ${latitude}, ${longitude}`
-                      : "Capture your workshop coordinates for regional buyer discovery & trust verification."}
+                      ? `Active Pin: ${latitude}, ${longitude}`
+                      : "Capture your device's current location via browser."}
                   </p>
-                  {latitude && city && (
-                    <p className="text-[11px] text-emerald-400 font-medium mt-1 flex items-center gap-1">
-                      <Check className="w-3 h-3 text-emerald-400" /> Auto-filled address from GPS: {city}, {stateName} ({pincode || "PIN"})
-                    </p>
-                  )}
                 </div>
                 <Button
                   type="button"
                   size="sm"
-                  variant={latitude ? "outline" : "primary"}
+                  variant="outline"
                   onClick={handleCaptureLocation}
                   disabled={isLocating}
-                  className="shrink-0"
+                  className="shrink-0 text-xs"
                 >
-                  <Navigation className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
-                  {isLocating ? "Locating & Reverse Geocoding..." : latitude ? "Update GPS & Address" : "Capture GPS Location"}
+                  <Crosshair className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
+                  {isLocating ? "Detecting..." : "Detect Device GPS"}
                 </Button>
               </div>
 
+              {/* Option B: Precision DMS or Decimal Paste & Reverse Geocode */}
+              <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+                    <Search className="w-3.5 h-3.5 text-ochre-400" />
+                    Paste Exact Coordinates or DMS
+                  </label>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    e.g. 11°03&apos;35.5&quot;N 76°55&apos;56.7&quot;E
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customCoordsInput}
+                    onChange={(e) => setCustomCoordsInput(e.target.value)}
+                    placeholder='Paste e.g. 11°03&apos;35.5"N 76°55&apos;56.7"E or 11.059861, 76.932417'
+                    className="flex-1 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500 font-mono"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleLookupCustomCoords}
+                    disabled={isLocating}
+                    className="shrink-0 text-xs"
+                  >
+                    <Search className={`w-3.5 h-3.5 mr-1.5 ${isLocating ? "animate-spin" : ""}`} />
+                    {isLocating ? "Locating..." : "Pin & Auto-Fill"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Decimal Coordinates Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                    Latitude
+                  </label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={latitude ?? ""}
+                    onChange={(e) => setLatitude(parseFloat(e.target.value) || undefined)}
+                    placeholder="11.059861"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-artisan-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-400 mb-1">
+                    Longitude
+                  </label>
+                  <input
+                    type="number"
+                    step="0.000001"
+                    value={longitude ?? ""}
+                    onChange={(e) => setLongitude(parseFloat(e.target.value) || undefined)}
+                    placeholder="76.932417"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 text-xs font-mono focus:outline-none focus:border-artisan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Live Address Confirmation Pill */}
+              {latitude && city && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>
+                    <strong>Auto-detected Address:</strong> {city}, {stateName} ({pincode || "PIN"})
+                  </span>
+                </div>
+              )}
+
+              {/* Editable Street / Workshop Address */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                   Workshop / Studio Street Address
@@ -734,7 +866,7 @@ export function SellerProfileWizard({
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Plot 14, Traditional Craft Cluster, Near River Bank"
+                  placeholder="e.g. Ward 3, North Zone, Coimbatore North"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                 />
               </div>
@@ -748,10 +880,11 @@ export function SellerProfileWizard({
                     type="text"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    placeholder="e.g. Varanasi / Guwahati / Jaipur"
+                    placeholder="e.g. Coimbatore"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                     District
@@ -760,7 +893,7 @@ export function SellerProfileWizard({
                     type="text"
                     value={district}
                     onChange={(e) => setDistrict(e.target.value)}
-                    placeholder="e.g. Kamrup / Varanasi"
+                    placeholder="e.g. Coimbatore"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
                 </div>
@@ -775,10 +908,11 @@ export function SellerProfileWizard({
                     type="text"
                     value={stateName}
                     onChange={(e) => setStateName(e.target.value)}
-                    placeholder="e.g. Assam, Uttar Pradesh, Rajasthan"
+                    placeholder="e.g. Tamil Nadu"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
                 </div>
+
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
                     PIN Code (6 Digits)
@@ -787,46 +921,28 @@ export function SellerProfileWizard({
                     type="text"
                     maxLength={6}
                     value={pincode}
-                    onChange={(e) => setPincode(e.target.value)}
-                    placeholder="e.g. 781001"
+                    onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="e.g. 641001"
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-artisan-500"
                   />
-                </div>
-              </div>
-
-              {/* Trust Verification Summary */}
-              <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 flex items-start gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="text-[11px] text-slate-300 space-y-1">
-                  <p className="font-semibold text-emerald-300">
-                    Trust & Verification Level
-                  </p>
-                  <p className="text-slate-400">
-                    Completing your workshop details and capturing verified GPS coordinates unlocks verified status and boosts your studio trust score to <strong>85%+</strong>.
-                  </p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Modal Footer Controls */}
-        <div className="p-5 border-t border-slate-800 flex items-center justify-between bg-slate-900/90">
+        {/* Modal Footer / Navigation */}
+        <div className="p-5 border-t border-slate-800 flex items-center justify-between bg-slate-950/60">
           <div>
-            {step > 1 ? (
+            {step > 1 && (
               <Button
-                type="button"
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={() => setStep((s) => (s - 1) as any)}
-                disabled={isSaving}
+                onClick={() => setStep((s) => (s - 1) as 1 | 2 | 3)}
+                className="text-xs text-slate-400 hover:text-slate-200"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Back
-              </Button>
-            ) : (
-              <Button type="button" variant="outline" size="sm" onClick={onClose} disabled={isSaving}>
-                Cancel
+                Previous Step
               </Button>
             )}
           </div>
@@ -834,23 +950,22 @@ export function SellerProfileWizard({
           <div className="flex items-center gap-2">
             {step < 3 ? (
               <Button
-                type="button"
                 size="sm"
-                onClick={() => setStep((s) => (s + 1) as any)}
+                onClick={() => setStep((s) => (s + 1) as 1 | 2 | 3)}
+                className="text-xs"
               >
                 Continue
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             ) : (
               <Button
-                type="button"
                 size="sm"
                 onClick={handleSave}
-                disabled={isSaving}
-                className="bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold px-5"
+                isLoading={isSaving}
+                className="text-xs bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                {isSaving ? "Saving Studio..." : "Save & Complete Setup"}
+                Save & Complete Setup
               </Button>
             )}
           </div>
