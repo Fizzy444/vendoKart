@@ -33,25 +33,16 @@ import {
 
 export default function DashboardPage() {
   const { user, isLoading, openAuthModal, devLogin, logout, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
   const [sellerProfile, setSellerProfile] = useState<SellerProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
   const [isWizardOpen, setIsWizardOpen] = useState<boolean>(false);
 
-  // Sync active view with user's primary role
-  useEffect(() => {
-    if (user) {
-      if (user.roles.includes("buyer") && !user.roles.includes("seller")) {
-        setActiveTab("buyer");
-      } else {
-        setActiveTab("seller");
-      }
-    }
-  }, [user]);
+  // Derive role
+  const isSeller = user?.roles.includes("seller") || user?.roles.includes("admin");
 
   // Fetch Seller Profile if user has seller role
   const fetchSellerProfile = async () => {
-    if (!user || (!user.roles.includes("seller") && !user.roles.includes("admin"))) {
+    if (!user || !isSeller) {
       return;
     }
     setLoadingProfile(true);
@@ -138,7 +129,7 @@ export default function DashboardPage() {
     sellerProfile?.artisan_name ||
     user.business_name ||
     user.name ||
-    (activeTab === "seller" ? "Master Artisan" : "Craft Collector");
+    (isSeller ? "Master Artisan" : "Craft Collector");
 
   const computedLaborCostPerUnit =
     sellerProfile && sellerProfile.daily_capacity_units > 0
@@ -158,7 +149,7 @@ export default function DashboardPage() {
         <div className="relative z-10 space-y-2">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-artisan-500/20 text-artisan-300 border border-artisan-500/30">
-              {activeTab === "seller" ? "🎨 Seller Studio" : "🛍️ Buyer Marketplace"}
+              {isSeller ? "🎨 Seller Studio" : "🛍️ Buyer Marketplace"}
             </span>
             <span className="text-xs text-slate-400 flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
@@ -172,7 +163,7 @@ export default function DashboardPage() {
 
           <p className="text-xs text-slate-400 flex items-center gap-2">
             <Phone className="w-3.5 h-3.5 text-slate-500" /> {user.phone}
-            {sellerProfile?.craft_category && (
+            {isSeller && sellerProfile?.craft_category && (
               <>
                 <span className="text-slate-600">•</span>
                 <span className="text-artisan-300 font-medium">{sellerProfile.craft_category}</span>
@@ -181,35 +172,9 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* View Switcher & Action Buttons */}
-        <div className="relative z-10 flex flex-wrap items-center gap-2.5 self-start md:self-auto">
-          {/* Toggle between Seller and Buyer Views */}
-          <div className="p-1 bg-slate-950 rounded-xl border border-slate-800 flex">
-            <button
-              onClick={() => setActiveTab("seller")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                activeTab === "seller"
-                  ? "bg-artisan-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Hammer className="w-3.5 h-3.5" />
-              Seller View
-            </button>
-            <button
-              onClick={() => setActiveTab("buyer")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                activeTab === "buyer"
-                  ? "bg-ochre-600 text-white shadow-sm"
-                  : "text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <ShoppingBag className="w-3.5 h-3.5" />
-              Buyer View
-            </button>
-          </div>
-
-          {activeTab === "seller" && (
+        {/* Action Buttons */}
+        <div className="relative z-10 flex items-center gap-2.5 self-start md:self-auto">
+          {isSeller && (
             <Button
               variant="outline"
               size="sm"
@@ -228,266 +193,281 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* 2. Inline Studio Configuration Card (When Editing or Setting Up Profile) */}
-      {activeTab === "seller" && isWizardOpen && (
-        <SellerProfileWizard
-          initialProfile={sellerProfile}
-          isOpen={isWizardOpen}
-          onClose={() => setIsWizardOpen(false)}
-          onSuccess={(updated) => {
-            setSellerProfile(updated);
-            refreshUser();
-            setIsWizardOpen(false);
-          }}
-        />
-      )}
+      {/* ============================================================ */}
+      {/* SELLER DASHBOARD VIEW ONLY                                    */}
+      {/* ============================================================ */}
+      {isSeller ? (
+        <>
+          {/* 2. Inline Studio Configuration Card (When Editing) */}
+          {isWizardOpen && (
+            <SellerProfileWizard
+              initialProfile={sellerProfile}
+              isOpen={isWizardOpen}
+              onClose={() => setIsWizardOpen(false)}
+              onSuccess={(updated) => {
+                setSellerProfile(updated);
+                refreshUser();
+                setIsWizardOpen(false);
+              }}
+            />
+          )}
 
-      {/* 3. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
-      {activeTab === "seller" && sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && (
-        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-artisan-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-artisan-500"></span>
-              </span>
-              <span className="text-xs font-bold uppercase tracking-wider text-artisan-300">
-                Action Required: Stage 1 Setup
-              </span>
-            </div>
-            <h3 className="text-base font-bold text-slate-100">
-              Complete your Artisan Studio & Workspace Profile
-            </h3>
-            <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
-              Define your craft specialty, active workers, labor wage, and capture workshop address to unlock verified status and deterministic pricing.
-            </p>
-          </div>
-          <Button
-            onClick={() => setIsWizardOpen(true)}
-            className="bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold px-5 shrink-0"
-          >
-            <Sparkles className="w-4 h-4 mr-1.5" />
-            Complete Profile Setup
-          </Button>
-        </div>
-      )}
-
-      {/* 4. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
-      {activeTab === "seller" && sellerProfile && !isWizardOpen && (
-        <Card className="p-6 sm:p-8 bg-slate-900 border-slate-800 shadow-xl space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
-                <Hammer className="w-6 h-6" />
-              </div>
-              <div>
+          {/* 3. Onboarding Prompt Banner (If seller hasn't completed full studio setup and not actively editing) */}
+          {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && (
+            <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-artisan-950/80 via-slate-900 to-ochre-950/40 border border-artisan-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-lg font-bold text-slate-100">
-                    {sellerProfile.business_name || "Artisan Craft Studio"}
-                  </h2>
-                  <Badge variant="primary" size="sm">
-                    {sellerProfile.craft_category}
-                  </Badge>
-                  {sellerProfile.is_onboarded && (
-                    <Badge variant="success" size="sm">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Verified Studio
-                    </Badge>
-                  )}
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-artisan-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-artisan-500"></span>
+                  </span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-artisan-300">
+                    Action Required: Stage 1 Setup
+                  </span>
                 </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Lead Artisan: <strong className="text-slate-200">{sellerProfile.artisan_name}</strong> •{" "}
-                  {sellerProfile.experience_years} Years Craft Experience • {sellerProfile.seller_type.replace("_", " ")}
+                <h3 className="text-base font-bold text-slate-100">
+                  Complete your Artisan Studio & Workspace Profile
+                </h3>
+                <p className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                  Define your craft specialty, active workers, labor wage, and capture workshop address to unlock verified status and deterministic pricing.
                 </p>
               </div>
+              <Button
+                onClick={() => setIsWizardOpen(true)}
+                className="bg-artisan-500 hover:bg-artisan-600 text-slate-950 font-bold px-5 shrink-0"
+              >
+                <Sparkles className="w-4 h-4 mr-1.5" />
+                Complete Profile Setup
+              </Button>
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsWizardOpen(true)}
-              className="text-xs shrink-0 self-start sm:self-auto"
-            >
-              <Edit3 className="w-3.5 h-3.5 mr-1.5" />
-              Update Studio Info
-            </Button>
-          </div>
-
-          {/* Bio / Artisan Heritage */}
-          {sellerProfile.bio && (
-            <p className="text-xs text-slate-300 italic bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 leading-relaxed">
-              &ldquo;{sellerProfile.bio}&rdquo;
-            </p>
           )}
 
-          {/* Craft Specialties Tags */}
-          {sellerProfile.craft_specialties?.length > 0 && (
-            <div className="space-y-1.5">
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                Craft Specialties & Products:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {sellerProfile.craft_specialties.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2.5 py-1 rounded-lg bg-artisan-500/10 border border-artisan-500/20 text-artisan-300 text-xs font-medium"
-                  >
-                    {tag}
+          {/* 4. Artisan Studio Overview Card (Stage 1 Core Deliverable) */}
+          {sellerProfile && !isWizardOpen && (
+            <Card className="p-6 sm:p-8 bg-slate-900 border-slate-800 shadow-xl space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
+                    <Hammer className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg font-bold text-slate-100">
+                        {sellerProfile.business_name || "Artisan Craft Studio"}
+                      </h2>
+                      <Badge variant="primary" size="sm">
+                        {sellerProfile.craft_category}
+                      </Badge>
+                      {sellerProfile.is_onboarded && (
+                        <Badge variant="success" size="sm">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Verified Studio
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Lead Artisan: <strong className="text-slate-200">{sellerProfile.artisan_name}</strong> •{" "}
+                      {sellerProfile.experience_years} Years Craft Experience • {sellerProfile.seller_type.replace("_", " ")}
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsWizardOpen(true)}
+                  className="text-xs shrink-0 self-start sm:self-auto"
+                >
+                  <Edit3 className="w-3.5 h-3.5 mr-1.5" />
+                  Update Studio Info
+                </Button>
+              </div>
+
+              {/* Bio / Artisan Heritage */}
+              {sellerProfile.bio && (
+                <p className="text-xs text-slate-300 italic bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 leading-relaxed">
+                  &ldquo;{sellerProfile.bio}&rdquo;
+                </p>
+              )}
+
+              {/* Craft Specialties Tags */}
+              {sellerProfile.craft_specialties?.length > 0 && (
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Craft Specialties & Products:
                   </span>
-                ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    {sellerProfile.craft_specialties.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="px-2.5 py-1 rounded-lg bg-artisan-500/10 border border-artisan-500/20 text-artisan-300 text-xs font-medium"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Workspace Capacity & Parameters Matrix (§11 Deterministic Foundations) */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <Users className="w-3.5 h-3.5 text-artisan-400" /> Active Workers (W)
+                  </span>
+                  <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.number_of_workers} Craftsmen</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <IndianRupee className="w-3.5 h-3.5 text-emerald-400" /> Daily Labour Rate (L)
+                  </span>
+                  <p className="text-lg font-bold text-emerald-400 mt-1">₹{sellerProfile.daily_labour_rate_inr} / day</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <Layers className="w-3.5 h-3.5 text-blue-400" /> Daily Capacity (U)
+                  </span>
+                  <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.daily_capacity_units} units / day</p>
+                </div>
+
+                <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Base Labor Cost
+                  </span>
+                  <p className="text-lg font-bold text-amber-400 mt-1">₹{computedLaborCostPerUnit} / unit</p>
+                </div>
               </div>
-            </div>
+
+              {/* Location & Trust Level (§12 Presence Verification) */}
+              <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5 text-slate-300">
+                  <MapPin className="w-4 h-4 text-artisan-400 shrink-0" />
+                  <span>
+                    {sellerProfile.location?.city || sellerProfile.location?.state ? (
+                      <>
+                        <strong className="text-slate-100">
+                          {sellerProfile.location.city || "Cluster City"}
+                          {sellerProfile.location.state ? `, ${sellerProfile.location.state}` : ""}
+                        </strong>
+                        {sellerProfile.location.pincode ? ` (${sellerProfile.location.pincode})` : ""}
+                        {sellerProfile.location.address ? ` • ${sellerProfile.location.address}` : ""}
+                      </>
+                    ) : (
+                      <span className="text-slate-500">Location not yet configured</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-400">Trust Score:</span>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                    {sellerProfile.trust_score}%
+                  </span>
+                </div>
+              </div>
+            </Card>
           )}
 
-          {/* Workspace Capacity & Parameters Matrix (§11 Deterministic Foundations) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-artisan-400" /> Active Workers (W)
-              </span>
-              <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.number_of_workers} Craftsmen</p>
-            </div>
+          {/* 5. Seller Stage Modules */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-artisan-400" />
+              Artisan Business Manager Modules
+            </h2>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <IndianRupee className="w-3.5 h-3.5 text-emerald-400" /> Daily Labour Rate (L)
-              </span>
-              <p className="text-lg font-bold text-emerald-400 mt-1">₹{sellerProfile.daily_labour_rate_inr} / day</p>
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Voice Cataloging */}
+              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
+                    <Mic className="w-6 h-6" />
+                  </div>
+                  <Badge variant="primary" size="sm">Voice AI</Badge>
+                </div>
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-artisan-300 transition-colors">
+                  1. Voice-to-Catalog Listing
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Describe your craft in Hindi, Tamil, Bengali, or English. AI automatically transcribes specifications, story, and attributes.
+                </p>
+                <div className="pt-2 flex items-center text-xs font-semibold text-artisan-400 group-hover:translate-x-1 transition-transform">
+                  Start Voice Recording <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </Card>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5 text-blue-400" /> Daily Capacity (U)
-              </span>
-              <p className="text-lg font-bold text-slate-100 mt-1">{sellerProfile.daily_capacity_units} units / day</p>
-            </div>
+              {/* Smart Photography Studio */}
+              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
+                    <Camera className="w-6 h-6" />
+                  </div>
+                  <Badge variant="secondary" size="sm">Photo AI</Badge>
+                </div>
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-ochre-300 transition-colors">
+                  2. AI Photography Assistant
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Guided camera mode checks lighting, blur, and 5-angle craft angles to generate high-converting studio-grade photos.
+                </p>
+                <div className="pt-2 flex items-center text-xs font-semibold text-ochre-400 group-hover:translate-x-1 transition-transform">
+                  Launch Photo Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </Card>
 
-            <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" /> Base Labor Cost
-              </span>
-              <p className="text-lg font-bold text-amber-400 mt-1">₹{computedLaborCostPerUnit} / unit</p>
+              {/* Deterministic Fair Pricing */}
+              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                    <Calculator className="w-6 h-6" />
+                  </div>
+                  <Badge variant="success" size="sm">Fair Margin</Badge>
+                </div>
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
+                  3. Deterministic Fair Pricing Calculator
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Input raw materials + hourly labor. Hard math guarantees a profitable non-negotiable floor price for your hard work.
+                </p>
+                <div className="pt-2 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
+                  Calculate Margins <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </Card>
+
+              {/* Orders & Bulk Aggregation */}
+              <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                    <Package className="w-6 h-6" />
+                  </div>
+                  <Badge variant="neutral" size="sm">Fulfillment</Badge>
+                </div>
+                <h3 className="text-base font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
+                  4. Order Management & Dispatch
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Receive instant order notifications, generate shipping labels, and participate in pooled corporate bulk orders.
+                </p>
+                <div className="pt-2 flex items-center text-xs font-semibold text-indigo-400 group-hover:translate-x-1 transition-transform">
+                  View Orders <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                </div>
+              </Card>
             </div>
           </div>
+        </>
+      ) : (
+        /* ============================================================ */
+        /* BUYER DASHBOARD VIEW ONLY                                    */
+        /* ============================================================ */
+        <div className="space-y-4">
+          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-artisan-400" />
+            Discover & Shop Handcrafted Heritage
+          </h2>
 
-          {/* Location & Trust Level (§12 Presence Verification) */}
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5 text-slate-300">
-              <MapPin className="w-4 h-4 text-artisan-400 shrink-0" />
-              <span>
-                {sellerProfile.location?.city || sellerProfile.location?.state ? (
-                  <>
-                    <strong className="text-slate-100">
-                      {sellerProfile.location.city || "Cluster City"}
-                      {sellerProfile.location.state ? `, ${sellerProfile.location.state}` : ""}
-                    </strong>
-                    {sellerProfile.location.pincode ? ` (${sellerProfile.location.pincode})` : ""}
-                    {sellerProfile.location.address ? ` • ${sellerProfile.location.address}` : ""}
-                  </>
-                ) : (
-                  <span className="text-slate-500">Location not yet configured</span>
-                )}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400">Trust Score:</span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
-                {sellerProfile.trust_score}%
-              </span>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* 5. Action Cards (Core Stage Modules) */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-artisan-400" />
-          {activeTab === "seller" ? "Artisan Business Manager Modules" : "Discover & Shop Handcrafted Heritage"}
-        </h2>
-
-        {activeTab === "seller" ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Voice Cataloging */}
-            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20">
-                  <Mic className="w-6 h-6" />
-                </div>
-                <Badge variant="primary" size="sm">Voice AI</Badge>
-              </div>
-              <h3 className="text-base font-bold text-slate-100 group-hover:text-artisan-300 transition-colors">
-                1. Voice-to-Catalog Listing
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Describe your craft in Hindi, Tamil, Bengali, or English. AI automatically transcribes specifications, story, and attributes.
-              </p>
-              <div className="pt-2 flex items-center text-xs font-semibold text-artisan-400 group-hover:translate-x-1 transition-transform">
-                Start Voice Recording <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </div>
-            </Card>
-
-            {/* Smart Photography Studio */}
-            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
-                  <Camera className="w-6 h-6" />
-                </div>
-                <Badge variant="secondary" size="sm">Photo AI</Badge>
-              </div>
-              <h3 className="text-base font-bold text-slate-100 group-hover:text-ochre-300 transition-colors">
-                2. AI Photography Assistant
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Guided camera mode checks lighting, blur, and 5-angle craft angles to generate high-converting studio-grade photos.
-              </p>
-              <div className="pt-2 flex items-center text-xs font-semibold text-ochre-400 group-hover:translate-x-1 transition-transform">
-                Launch Photo Studio <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </div>
-            </Card>
-
-            {/* Deterministic Fair Pricing */}
-            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
-                  <Calculator className="w-6 h-6" />
-                </div>
-                <Badge variant="success" size="sm">Fair Margin</Badge>
-              </div>
-              <h3 className="text-base font-bold text-slate-100 group-hover:text-emerald-300 transition-colors">
-                3. Deterministic Fair Pricing Calculator
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Input raw materials + hourly labor. Hard math guarantees a profitable non-negotiable floor price for your hard work.
-              </p>
-              <div className="pt-2 flex items-center text-xs font-semibold text-emerald-400 group-hover:translate-x-1 transition-transform">
-                Calculate Margins <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </div>
-            </Card>
-
-            {/* Orders & Bulk Aggregation */}
-            <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-artisan-500/60">
-              <div className="flex items-start justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-                  <Package className="w-6 h-6" />
-                </div>
-                <Badge variant="neutral" size="sm">Fulfillment</Badge>
-              </div>
-              <h3 className="text-base font-bold text-slate-100 group-hover:text-indigo-300 transition-colors">
-                4. Order Management & Dispatch
-              </h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                Receive instant order notifications, generate shipping labels, and participate in pooled corporate bulk orders.
-              </p>
-              <div className="pt-2 flex items-center text-xs font-semibold text-indigo-400 group-hover:translate-x-1 transition-transform">
-                View Orders <ArrowRight className="w-3.5 h-3.5 ml-1" />
-              </div>
-            </Card>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Explore Regional Clusters */}
+            {/* Browse Regional Clusters */}
             <Card variant="interactive" className="p-6 space-y-3 cursor-pointer group hover:border-ochre-500/60">
               <div className="flex items-start justify-between">
                 <div className="w-12 h-12 rounded-2xl bg-ochre-500/10 text-ochre-400 flex items-center justify-center border border-ochre-500/20">
@@ -525,10 +505,10 @@ export default function DashboardPage() {
               </div>
             </Card>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* 6. Footer Help & Status */}
+      {/* Footer Status */}
       <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
         <span className="flex items-center gap-1.5">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
