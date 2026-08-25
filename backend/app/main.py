@@ -1,10 +1,20 @@
+import sys
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
+
+# Ensure project root (containing `ai` and `backend`) is on sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.repositories.product_repository import ProductRepository
+from app.repositories.chroma_repository import ChromaRepository
 from app.core.database import (
     close_mongo_connection,
     close_redis_connection,
@@ -25,6 +35,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing application lifespan...")
     await connect_to_mongo()
     await connect_to_redis()
+    await ChromaRepository.initialize_and_migrate(ProductRepository._PRODUCTS_SEED)
     yield
     logger.info("Shutting down application lifespan...")
     await close_mongo_connection()
@@ -45,7 +56,7 @@ app = FastAPI(
 if settings.CORS_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.CORS_ORIGINS],
+        allow_origins=settings.CORS_ORIGINS,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -29,6 +29,7 @@ class UserInDB(BaseModel):
     id: Optional[str] = Field(default=None, alias="_id")
     phone: str
     name: Optional[str] = None
+    email: Optional[str] = None
     business_name: Optional[str] = None
     roles: List[UserRole] = [UserRole.BUYER]
     status: UserStatus = UserStatus.ACTIVE

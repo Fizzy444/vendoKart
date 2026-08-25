@@ -14,6 +14,7 @@ export interface User {
   id: string;
   phone: string;
   name?: string;
+  email?: string;
   business_name?: string;
   roles: UserRole[];
   status: UserStatus;

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -21,17 +22,17 @@ async def connect_to_mongo():
     try:
         db_state.client = AsyncIOMotorClient(
             settings.MONGODB_URI,
-            serverSelectionTimeoutMS=5000,
+            serverSelectionTimeoutMS=1000,
         )
         db_state.db = db_state.client[settings.MONGODB_DATABASE]
-        # Quick ping to verify connectivity
-        await db_state.client.admin.command("ping")
+        # Quick ping with 1s timeout
+        await asyncio.wait_for(db_state.client.admin.command("ping"), timeout=1.0)
         logger.info(f"Connected to MongoDB database: {settings.MONGODB_DATABASE}")
 
         # Ensure indexes
         await _create_indexes(db_state.db)
     except Exception as e:
-        logger.warning(f"MongoDB connection ping failed: {e}. Retrying on demand.")
+        logger.info("MongoDB offline in local dev mode. Continuing with fallback in-memory state.")
 
 
 async def _create_indexes(db: AsyncIOMotorDatabase):
@@ -55,15 +56,18 @@ async def close_mongo_connection():
 async def connect_to_redis():
     logger.info(f"Connecting to Redis at {settings.REDIS_URL}...")
     try:
-        db_state.redis = aioredis.from_url(
+        r_client = aioredis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
-            socket_timeout=5,
+            socket_timeout=1.0,
+            retry_on_timeout=False,
         )
-        await db_state.redis.ping()
+        await asyncio.wait_for(r_client.ping(), timeout=1.0)
+        db_state.redis = r_client
         logger.info("Connected to Redis successfully.")
-    except Exception as e:
-        logger.warning(f"Redis connection failed: {e}")
+    except Exception:
+        db_state.redis = None
+        logger.info("Redis offline in local dev mode. Continuing with in-memory session cache.")
 
 
 async def close_redis_connection():

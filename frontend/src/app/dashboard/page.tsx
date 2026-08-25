@@ -1,342 +1,503 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
-import {
-  Hammer,
-  ShoppingBag,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  User as UserIcon,
-  Phone,
-  Calendar,
-  Lock,
-  Sparkles,
-  Edit3,
-  Save,
-  ArrowLeft,
-} from "lucide-react";
-import Link from "next/link";
+import { ProductItem, SearchRequest, SearchResponse } from "@/types/search";
+import { User } from "@/types/auth";
+import { Sidebar } from "@/components/dashboard/Sidebar";
+import { HeaderGreeting } from "@/components/dashboard/HeaderGreeting";
+import { SearchBar } from "@/components/dashboard/SearchBar";
+import { FilterBar } from "@/components/dashboard/FilterBar";
+import { ProductCard } from "@/components/dashboard/ProductCard";
+import { ProductDetailsModal } from "@/components/dashboard/ProductDetailsModal";
+import { OnboardingModal } from "@/components/dashboard/OnboardingModal";
+import { SettingsView } from "@/components/dashboard/SettingsView";
+import { ProfileView } from "@/components/dashboard/ProfileView";
+import { Menu, Sparkles, Heart, PackageX, ChevronDown, ShoppingBag, MessageSquare, Bell } from "lucide-react";
 
-export default function DashboardPage() {
-  const { user, isLoading, openAuthModal, logout, refreshUser } = useAuth();
-  const [editingProfile, setEditingProfile] = useState<boolean>(false);
-  const [nameInput, setNameInput] = useState<string>("");
-  const [businessInput, setBusinessInput] = useState<string>("");
-  const [saveLoading, setSaveLoading] = useState<boolean>(false);
+export default function BuyerDashboardPage() {
+  const { user: authUser, refreshUser } = useAuth();
 
-  // Protected route test results
-  const [testResult, setTestResult] = useState<{
-    endpoint: string;
-    status: "success" | "error";
-    message: string;
-  } | null>(null);
-  const [testLoading, setTestLoading] = useState<boolean>(false);
+  // Navigation & Mobile Drawer State
+  const [activeTab, setActiveTab] = useState<string>("home");
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false);
 
-  React.useEffect(() => {
-    if (user) {
-      setNameInput(user.name || "");
-      setBusinessInput(user.business_name || "");
-    }
-  }, [user]);
+  // User Profile & Location State
+  const [currentUser, setCurrentUser] = useState<User | null>(authUser || null);
+  const [savedLocation, setSavedLocation] = useState<string>("");
+  const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-12">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-artisan-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-slate-400">Loading authenticated session...</p>
-        </div>
-      </div>
-    );
-  }
+  // Search & AI Mode State
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [aiMode, setAiMode] = useState<boolean>(true);
 
-  if (!user) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <Card className="max-w-md w-full text-center p-8 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 mx-auto flex items-center justify-center border border-amber-500/20">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h2 className="text-xl font-bold text-slate-100">Authentication Required</h2>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            You must be logged in with a verified Phone OTP to access the artisan dashboard and protected API routes.
-          </p>
-          <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
-            <Button onClick={() => openAuthModal("seller")}>
-              <Hammer className="w-4 h-4 mr-1.5" />
-              Artisan Sign In
-            </Button>
-            <Button variant="secondary" onClick={() => openAuthModal("buyer")}>
-              <ShoppingBag className="w-4 h-4 mr-1.5" />
-              Buyer Sign In
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
+  // Filter State
+  const [priceRange, setPriceRange] = useState<string>("");
+  const [quantityRange, setQuantityRange] = useState<string>("");
+  const [category, setCategory] = useState<string>("");
+  const [locationMode, setLocationMode] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("relevance");
 
-  const handleSaveProfile = async () => {
-    setSaveLoading(true);
-    try {
-      await api.updateProfile({
-        name: nameInput,
-        business_name: businessInput,
-      });
-      await refreshUser();
-      setEditingProfile(false);
-    } catch (e: any) {
-      alert("Failed to update profile: " + e.message);
-    } finally {
-      setSaveLoading(false);
-    }
-  };
+  // Master Products State (Holds ALL candidate products to ensure Favorites is independent of Home filters)
+  const [masterProducts, setMasterProducts] = useState<ProductItem[]>([]);
+  // Search Response & Filtered Results State (for Home Tab)
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [searchMeta, setSearchMeta] = useState<SearchResponse | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
 
-  const testEndpoint = async (type: "seller" | "buyer" | "me") => {
-    setTestLoading(true);
-    setTestResult(null);
-    try {
-      let res;
-      if (type === "seller") {
-        res = await api.testSellerRoute();
-      } else if (type === "buyer") {
-        res = await api.testBuyerRoute();
-      } else {
-        res = await api.getMe();
+  // Sync authUser to currentUser
+  useEffect(() => {
+    if (authUser) {
+      setCurrentUser(authUser);
+      const loc = authUser.location?.city
+        ? `${authUser.location.city}, ${authUser.location.state || ""}`
+        : authUser.location?.address || "";
+      if (loc) {
+        setSavedLocation(loc);
+        localStorage.setItem("vendokart_saved_location", loc);
       }
-      setTestResult({
-        endpoint: `/api/v1/auth/${type === "me" ? "me" : type + "-only"}`,
-        status: "success",
-        message: JSON.stringify(res, null, 2),
-      });
-    } catch (err: any) {
-      setTestResult({
-        endpoint: `/api/v1/auth/${type === "me" ? "me" : type + "-only"}`,
-        status: "error",
-        message: err.message || "Request rejected with 403 Forbidden or 401 Unauthorized",
-      });
-    } finally {
-      setTestLoading(false);
+    } else {
+      // Check client storage for guest session location & name
+      const loc = localStorage.getItem("vendokart_saved_location") || "";
+      const savedName = localStorage.getItem("vendokart_saved_name");
+      setSavedLocation(loc);
+      if (savedName) {
+        setCurrentUser({
+          id: "guest-user",
+          phone: "",
+          name: savedName,
+          roles: ["buyer"],
+          status: "active",
+          is_phone_verified: true,
+          location: { city: loc.split(",")[0] || "", address: loc },
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      }
+    }
+  }, [authUser]);
+
+  // Initial fetch of master products for independent Favorites tracking
+  useEffect(() => {
+    const fetchMasterProducts = async () => {
+      try {
+        const res = await api.searchProducts({ ai_mode: true });
+        setMasterProducts(res.products);
+      } catch (e) {
+        console.error("Master products fetch error:", e);
+      }
+    };
+    fetchMasterProducts();
+  }, []);
+
+  // Master Search Execution Method for Home tab
+  const executeSearch = useCallback(
+    async (queryOverride?: string) => {
+      setIsLoading(true);
+      const q = queryOverride !== undefined ? queryOverride : searchQuery;
+
+      const request: SearchRequest = {
+        query: q.trim() || undefined,
+        ai_mode: aiMode,
+        price_range: priceRange || undefined,
+        quantity_range: quantityRange || undefined,
+        category: category || undefined,
+        location_mode: locationMode,
+        user_location: savedLocation,
+        sort_by: sortBy,
+      };
+
+      try {
+        const response: SearchResponse = await api.searchProducts(request);
+        setSearchMeta(response);
+        setProducts(response.products);
+      } catch (err) {
+        console.error("Search failed:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [searchQuery, aiMode, priceRange, quantityRange, category, locationMode, savedLocation, sortBy]
+  );
+
+  // Trigger search on mount and when filter/sort dependencies change
+  useEffect(() => {
+    executeSearch();
+  }, [executeSearch]);
+
+  // Handle Favorite Toggle (Updates BOTH filtered home products AND master products)
+  const handleFavoriteToggle = async (productId: string) => {
+    try {
+      const updated = await api.toggleFavorite(productId);
+      
+      // Update Home tab filtered products
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, is_favorite: updated.is_favorite } : p))
+      );
+      
+      // Update Master products so Favorites tab is 100% independent of filters
+      setMasterProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, is_favorite: updated.is_favorite } : p))
+      );
+    } catch (err) {
+      // Optimistic update fallback
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, is_favorite: !p.is_favorite } : p))
+      );
+      setMasterProducts((prev) =>
+        prev.map((p) => (p.id === productId ? { ...p, is_favorite: !p.is_favorite } : p))
+      );
     }
   };
 
-  const isSeller = user.roles.includes("seller") || user.roles.includes("admin");
+  // Clear All Active Filters
+  const handleClearFilters = () => {
+    setPriceRange("");
+    setQuantityRange("");
+    setCategory("");
+    setLocationMode("all");
+    setSearchQuery("");
+  };
+
+  const hasActiveFilters = Boolean(
+    priceRange || quantityRange || category || locationMode !== "all" || searchQuery
+  );
+
+  // Favorites list comes from masterProducts so Home filters NEVER affect Favorites
+  const favoriteProducts = masterProducts.filter((p) => p.is_favorite);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-8 border-b border-slate-800">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-100 tracking-tight">
-              {user.business_name || user.name || "Artisan Dashboard"}
-            </h1>
-            <Badge variant="primary" size="md">
-              <CheckCircle2 className="w-3 h-3 text-artisan-400 mr-1" />
-              OTP Verified
-            </Badge>
-          </div>
-          <p className="text-xs text-slate-400 mt-1 flex items-center gap-2">
-            <Phone className="w-3.5 h-3.5" /> {user.phone} • Registered:{" "}
-            {new Date(user.created_at).toLocaleDateString()}
-          </p>
-        </div>
-
+    <div className="min-h-screen bg-[#F8F5EE] text-[#1E2316] flex flex-col lg:flex-row font-sans">
+      {/* Mobile Top Navbar Bar */}
+      <div className="lg:hidden bg-white border-b border-[#EBE6DC] px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setEditingProfile(!editingProfile)}
+          <button
+            onClick={() => setMobileSidebarOpen(true)}
+            className="p-2 text-[#4A5240] hover:bg-[#F5F1E6] rounded-xl transition"
           >
-            <Edit3 className="w-3.5 h-3.5 mr-1" />
-            {editingProfile ? "Cancel" : "Edit Profile"}
-          </Button>
-          <Button variant="ghost" size="sm" onClick={logout} className="text-red-400">
-            Sign Out
-          </Button>
+            <Menu className="w-6 h-6" />
+          </button>
+          <span className="font-extrabold text-lg tracking-tight text-[#1E2316]">
+            vendo<span className="text-[#B84018]">Kart</span>
+          </span>
         </div>
+        <button
+          onClick={() => setActiveTab("profile")}
+          className="px-3 py-1.5 rounded-full bg-[#F7F3EA] border border-[#E8E1D3] text-xs font-semibold text-[#44521E]"
+        >
+          {currentUser?.name || "Set Profile"}
+        </button>
       </div>
 
-      {/* Edit Profile Form */}
-      {editingProfile && (
-        <Card className="my-6 border-artisan-500/30 bg-slate-900/90">
-          <h3 className="text-sm font-bold text-slate-200 mb-4 flex items-center gap-2">
-            <Edit3 className="w-4 h-4 text-artisan-400" />
-            Update Profile Information
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Your Full Name</label>
-              <input
-                type="text"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="e.g. Madhavan Nair"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Business / Workshop Name</label>
-              <input
-                type="text"
-                value={businessInput}
-                onChange={(e) => setBusinessInput(e.target.value)}
-                placeholder="e.g. Kerala Teak Handcrafts"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-artisan-500"
-              />
-            </div>
+      {/* Mobile Drawer Overlay */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden flex">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <div className="relative z-50 w-64 max-w-full">
+            <Sidebar
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              onCloseMobile={() => setMobileSidebarOpen(false)}
+            />
           </div>
-          <div className="mt-4 flex justify-end">
-            <Button size="sm" onClick={handleSaveProfile} isLoading={saveLoading}>
-              <Save className="w-4 h-4 mr-1" />
-              Save Changes
-            </Button>
-          </div>
-        </Card>
+        </div>
       )}
 
-      {/* User Details & Stage 0 Verification Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-8">
-        {/* Profile Card */}
-        <Card variant="glow" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-              Account Identity
-            </h3>
-            <div className="w-8 h-8 rounded-lg bg-artisan-500/10 text-artisan-400 flex items-center justify-center">
-              {isSeller ? <Hammer className="w-4 h-4" /> : <ShoppingBag className="w-4 h-4" />}
-            </div>
-          </div>
+      {/* Desktop Left Sidebar */}
+      <div className="hidden lg:block shrink-0 sticky top-0 h-screen">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
 
-          <div className="space-y-2.5 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">User ID:</span>
-              <span className="text-slate-300 font-mono text-[11px] truncate max-w-[160px]">
-                {user.id}
-              </span>
+      {/* Main Dashboard Content Area */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full space-y-6">
+        {/* Header Greeting Section */}
+        <HeaderGreeting
+          userName={currentUser?.name}
+          userLocation={savedLocation}
+          onOpenProfile={() => setActiveTab("profile")}
+        />
+
+        {/* TAB 1: HOME */}
+        {activeTab === "home" && (
+          <>
+            {/* Unified Search Section Bar */}
+            <SearchBar
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              aiMode={aiMode}
+              setAiMode={setAiMode}
+              onSearch={(q) => executeSearch(q)}
+              isSearching={isLoading}
+            />
+
+            {/* Extracted Requirements Badge Panel */}
+            {aiMode && searchMeta?.extracted_requirements && (
+              <div className="bg-[#FAF6EE] border border-[#EAE3D2] rounded-2xl p-4 flex flex-wrap items-center gap-3 text-xs animate-in fade-in duration-200">
+                <span className="font-bold text-[#44521E] flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-[#B84018]" />
+                  AI Extracted Requirement Specs:
+                </span>
+
+                {searchMeta.extracted_requirements.product && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-[#E0D8C5] text-[#1E2316] font-semibold">
+                    Product: {searchMeta.extracted_requirements.product}
+                  </span>
+                )}
+                {searchMeta.extracted_requirements.quantity && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-[#E0D8C5] text-[#44521E] font-semibold">
+                    Qty: {searchMeta.extracted_requirements.quantity} pcs
+                  </span>
+                )}
+                {searchMeta.extracted_requirements.max_budget && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-[#E0D8C5] text-[#B84018] font-semibold">
+                    Max Budget: ₹{searchMeta.extracted_requirements.max_budget}
+                  </span>
+                )}
+                {searchMeta.extracted_requirements.max_delivery_days && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-[#E0D8C5] text-[#1E2316] font-semibold">
+                    Deadline: ≤ {searchMeta.extracted_requirements.max_delivery_days} days
+                  </span>
+                )}
+                {searchMeta.extracted_requirements.category && (
+                  <span className="px-2.5 py-1 rounded-full bg-white border border-[#E0D8C5] text-[#44521E] font-semibold">
+                    Category: {searchMeta.extracted_requirements.category}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Filter Bar Controls */}
+            <FilterBar
+              priceRange={priceRange}
+              setPriceRange={setPriceRange}
+              quantityRange={quantityRange}
+              setQuantityRange={setQuantityRange}
+              category={category}
+              setCategory={setCategory}
+              locationMode={locationMode}
+              setLocationMode={setLocationMode}
+              onApplyFilters={() => executeSearch()}
+              onClearFilters={handleClearFilters}
+              hasActiveFilters={hasActiveFilters}
+              userLocation={savedLocation}
+            />
+
+            {/* Results Header Bar & Sort Selection */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#B84018]" />
+                <h2 className="text-lg font-black text-[#1E2316] tracking-tight">
+                  Top Matches for You
+                </h2>
+                <span className="text-xs text-[#6B7260] font-medium bg-[#EFEBE0] px-2.5 py-0.5 rounded-full">
+                  {products.length} {products.length === 1 ? "product" : "products"}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-[#6B7260] font-medium">Sort by:</span>
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => {
+                      setSortBy(e.target.value);
+                      executeSearch();
+                    }}
+                    className="appearance-none bg-white border border-[#E0DACB] text-[#1E2316] font-bold rounded-xl px-3 py-1.5 pr-7 focus:outline-none focus:border-[#44521E] cursor-pointer shadow-xs"
+                  >
+                    <option value="relevance">Relevance</option>
+                    <option value="price_asc">Price: Low to High</option>
+                    <option value="price_desc">Price: High to Low</option>
+                    <option value="rating">Rating</option>
+                    <option value="nearest">Nearest First</option>
+                    <option value="delivery_time">Delivery Time</option>
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-[#6B7260] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Phone:</span>
-              <span className="text-slate-200 font-medium font-mono">{user.phone}</span>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Roles:</span>
-              <div className="flex gap-1">
-                {user.roles.map((r) => (
-                  <Badge key={r} variant="primary" size="sm">
-                    {r}
-                  </Badge>
+
+            {/* Product Cards Grid */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-12">
+                {[1, 2, 3].map((n) => (
+                  <div
+                    key={n}
+                    className="bg-white rounded-3xl h-96 border border-[#EBE6DC] animate-pulse p-4 space-y-4"
+                  >
+                    <div className="bg-gray-200 h-48 rounded-2xl w-full" />
+                    <div className="bg-gray-200 h-6 rounded-lg w-3/4" />
+                    <div className="bg-gray-200 h-4 rounded-lg w-1/2" />
+                    <div className="bg-gray-200 h-10 rounded-2xl w-full pt-4" />
+                  </div>
                 ))}
               </div>
-            </div>
-            <div className="flex justify-between py-1.5 border-b border-slate-800">
-              <span className="text-slate-500">Account Status:</span>
-              <Badge variant="success" size="sm">
-                {user.status}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-
-        {/* Live RBAC Guardrail Tester */}
-        <Card variant="glow" className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-200 uppercase tracking-wider">
-                Stage 0 Protected Route Verification
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Hit backend endpoints with current JWT Bearer token to test role-based access control.
-              </p>
-            </div>
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-          </div>
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => testEndpoint("me")}
-              disabled={testLoading}
-            >
-              Test GET /api/v1/auth/me
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => testEndpoint("seller")}
-              disabled={testLoading}
-            >
-              <Hammer className="w-3.5 h-3.5 mr-1 text-artisan-400" />
-              Test /seller-only (Guarded)
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => testEndpoint("buyer")}
-              disabled={testLoading}
-            >
-              <ShoppingBag className="w-3.5 h-3.5 mr-1 text-ochre-400" />
-              Test /buyer-only (Guarded)
-            </Button>
-          </div>
-
-          {/* Test Output Console */}
-          {testResult && (
-            <div
-              className={`p-4 rounded-xl font-mono text-xs border ${
-                testResult.status === "success"
-                  ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
-                  : "bg-red-950/30 border-red-500/30 text-red-300"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5 font-bold">
-                <span>{testResult.endpoint}</span>
-                <span>{testResult.status.toUpperCase()}</span>
+            ) : products.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    onViewDetails={(p) => setSelectedProduct(p)}
+                  />
+                ))}
               </div>
-              <pre className="whitespace-pre-wrap overflow-x-auto text-[11px]">
-                {testResult.message}
-              </pre>
-            </div>
-          )}
-        </Card>
-      </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-[#EBE6DC] space-y-4 my-6">
+                <div className="w-16 h-16 rounded-full bg-[#F7F3EA] text-[#B84018] mx-auto flex items-center justify-center border border-[#E8E1D3]">
+                  <PackageX className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-bold text-[#1E2316]">
+                  No matching artisan products found
+                </h3>
+                <p className="text-xs text-[#6B7260] max-w-md mx-auto leading-relaxed">
+                  We couldn't find any products matching your specific query and filter combination.
+                </p>
+                <div className="pt-2">
+                  <button
+                    onClick={handleClearFilters}
+                    className="px-5 py-2.5 bg-[#44521E] hover:bg-[#364217] text-white font-bold text-xs rounded-2xl shadow-sm transition"
+                  >
+                    Reset Search & Filters
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
-      {/* Next Stages Roadmap Card */}
-      <div className="mt-8">
-        <Card className="bg-slate-900/60 border-slate-800 p-6">
-          <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-artisan-400" />
-            Upcoming Architectural Modules
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-artisan-400 block mb-1">Stage 1: Seller Core</span>
-              <p className="text-slate-400">
-                Product creation, manual attributes, and the pure math Deterministic Pricing Engine (§11).
-              </p>
+        {/* TAB 2: FAVORITES (Independent of Home search filters) */}
+        {activeTab === "favorites" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-[#F2ECE1] pb-4">
+              <div>
+                <h2 className="text-2xl font-black text-[#1E2316] flex items-center gap-2">
+                  <Heart className="w-6 h-6 text-[#B84018] fill-current" /> My Favorites
+                </h2>
+                <p className="text-xs text-[#6B7260] mt-1">
+                  Artisan products you have saved for bulk purchasing or future reference.
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[#44521E] bg-[#EFEBE0] px-3 py-1 rounded-full">
+                {favoriteProducts.length} saved
+              </span>
             </div>
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-ochre-400 block mb-1">Stage 2: Buyer Core</span>
-              <p className="text-slate-400">
-                Product browse, category filters, single-seller order placement, and status tracking.
-              </p>
-            </div>
-            <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800">
-              <span className="font-bold text-blue-400 block mb-1">Stage 3: AI Voice & Catalogue</span>
-              <p className="text-slate-400">
-                Whisper speech-to-text, multilingual attribute extraction, and editable catalogue agent.
-              </p>
-            </div>
+
+            {favoriteProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+                {favoriteProducts.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onFavoriteToggle={handleFavoriteToggle}
+                    onViewDetails={(p) => setSelectedProduct(p)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-12 text-center border border-[#EBE6DC] space-y-4 my-6">
+                <div className="w-16 h-16 rounded-full bg-[#F7F3EA] text-[#B84018] mx-auto flex items-center justify-center border border-[#E8E1D3]">
+                  <Heart className="w-8 h-8 text-[#B84018]" />
+                </div>
+                <h3 className="text-lg font-bold text-[#1E2316]">
+                  No favorite items added yet
+                </h3>
+                <p className="text-xs text-[#6B7260] max-w-md mx-auto leading-relaxed">
+                  Click the heart icon on any artisan product card to save it to your favorites list!
+                </p>
+                <button
+                  onClick={() => setActiveTab("home")}
+                  className="px-5 py-2.5 bg-[#44521E] hover:bg-[#364217] text-white font-bold text-xs rounded-2xl transition"
+                >
+                  Explore Products
+                </button>
+              </div>
+            )}
           </div>
-        </Card>
-      </div>
+        )}
+
+        {/* TAB 3: PROFILE */}
+        {activeTab === "profile" && (
+          <ProfileView
+            currentUser={currentUser}
+            onSaved={(updatedUser) => {
+              setCurrentUser(updatedUser);
+              if (updatedUser.location?.address) {
+                setSavedLocation(updatedUser.location.address);
+              }
+              refreshUser();
+            }}
+          />
+        )}
+
+        {/* TAB 4: SETTINGS */}
+        {activeTab === "settings" && <SettingsView />}
+
+        {/* TAB 5: ORDERS */}
+        {activeTab === "orders" && (
+          <div className="bg-white rounded-3xl p-12 text-center border border-[#EBE6DC] space-y-4">
+            <div className="w-14 h-14 rounded-full bg-[#F7F3EA] text-[#44521E] mx-auto flex items-center justify-center">
+              <ShoppingBag className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-[#1E2316]">My Orders</h3>
+            <p className="text-xs text-[#6B7260]">
+              You have no active bulk orders. Explore artisan crafts on Home to place your first bulk requirement.
+            </p>
+          </div>
+        )}
+
+        {/* TAB 6: MESSAGES */}
+        {activeTab === "messages" && (
+          <div className="bg-white rounded-3xl p-12 text-center border border-[#EBE6DC] space-y-4">
+            <div className="w-14 h-14 rounded-full bg-[#F7F3EA] text-[#44521E] mx-auto flex items-center justify-center">
+              <MessageSquare className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-[#1E2316]">Artisan Messages</h3>
+            <p className="text-xs text-[#6B7260]">
+              Direct communication channels with verified artisan masters will appear here.
+            </p>
+          </div>
+        )}
+
+        {/* TAB 7: NOTIFICATIONS */}
+        {activeTab === "notifications" && (
+          <div className="bg-white rounded-3xl p-12 text-center border border-[#EBE6DC] space-y-4">
+            <div className="w-14 h-14 rounded-full bg-[#F7F3EA] text-[#B84018] mx-auto flex items-center justify-center">
+              <Bell className="w-7 h-7" />
+            </div>
+            <h3 className="text-lg font-bold text-[#1E2316]">Notifications</h3>
+            <p className="text-xs text-[#6B7260]">
+              Order updates, artisan quote responses, and craft cluster news will appear here.
+            </p>
+          </div>
+        )}
+      </main>
+
+      {/* Product Details Modal */}
+      <ProductDetailsModal
+        product={selectedProduct}
+        onClose={() => setSelectedProduct(null)}
+      />
+
+      {/* Onboarding Modal */}
+      <OnboardingModal
+        isOpen={isOnboardingOpen}
+        onClose={() => setIsOnboardingOpen(false)}
+        currentUser={currentUser}
+        onSaved={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          if (updatedUser.location?.address) {
+            setSavedLocation(updatedUser.location.address);
+          }
+          refreshUser();
+        }}
+      />
     </div>
   );
 }

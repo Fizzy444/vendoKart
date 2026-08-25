@@ -132,6 +132,24 @@ class ApiService {
     return this.request<{ message: string; data: any }>("/auth/buyer-only", {}, true);
   }
 
+  // Buyer Search & Product Methods
+  async searchProducts(request: any): Promise<any> {
+    return this.request("/search", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+  }
+
+  async getProductById(productId: string): Promise<any> {
+    return this.request(`/search/products/${productId}`);
+  }
+
+  async toggleFavorite(productId: string): Promise<any> {
+    return this.request(`/search/products/${productId}/favorite`, {
+      method: "POST",
+    });
+  }
+
   logout() {
     this.setTokens(null);
   }
