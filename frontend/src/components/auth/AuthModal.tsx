@@ -4,7 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import {
   X,
   Phone,
@@ -14,31 +13,33 @@ import {
   CheckCircle2,
   AlertCircle,
   ArrowRight,
-  MessageSquare,
-  MessageCircle,
 } from "lucide-react";
 
 export const AuthModal: React.FC = () => {
-  const { isAuthModalOpen, closeAuthModal, authModalRole, login } = useAuth();
+  const { isAuthModalOpen, closeAuthModal, authModalRole, login, devLogin } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<"phone" | "otp">("phone");
   const [role, setRole] = useState<"seller" | "buyer">(authModalRole || "seller");
-  const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [otp, setOtp] = useState<string>("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync initial role when opening modal
+  // Reset form and sync role whenever modal is opened
   useEffect(() => {
-    if (authModalRole) {
-      setRole(authModalRole);
+    if (isAuthModalOpen) {
+      setStep("phone");
+      setOtp("");
+      setError(null);
+      setIsLoading(false);
+      if (authModalRole) {
+        setRole(authModalRole);
+      }
     }
-  }, [authModalRole]);
+  }, [isAuthModalOpen, authModalRole]);
 
   // Focus OTP on transition
   useEffect(() => {
@@ -49,21 +50,32 @@ export const AuthModal: React.FC = () => {
     }
   }, [step]);
 
+  const handleClose = () => {
+    setStep("phone");
+    setOtp("");
+    setError(null);
+    setIsLoading(false);
+    closeAuthModal();
+  };
+
   if (!isAuthModalOpen) return null;
+
+  const getFullPhone = () => {
+    const raw = phone.replace(/\D/g, "");
+    return `+91${raw.slice(-10)}`;
+  };
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      if (cleanPhone.length < 10) {
-        throw new Error("Please enter your complete mobile number with country code");
+      const raw = phone.replace(/\D/g, "");
+      if (raw.length < 10) {
+        throw new Error("Please enter your 10-digit mobile number");
       }
-      const response = await api.sendOtp(cleanPhone, channel);
-      if (response.is_dev_mode && response.dev_otp) {
-        setDevOtpHint(response.dev_otp);
-      }
+      const fullPhone = getFullPhone();
+      await api.sendOtp(fullPhone);
       setStep("otp");
     } catch (err: any) {
       setError(err.message || "Failed to send verification code");
@@ -77,12 +89,13 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setIsLoading(true);
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      await login(cleanPhone, otp, role, name || undefined);
+      const fullPhone = getFullPhone();
+      await login(fullPhone, otp, role, name || undefined);
+
       // Reset form state
       setStep("phone");
       setOtp("");
-      setDevOtpHint(null);
+      setError(null);
     } catch (err: any) {
       setError(err.message || "Invalid OTP code");
     } finally {
@@ -91,14 +104,17 @@ export const AuthModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={handleClose}
+    >
       <div
         className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl shadow-black/80"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
-          onClick={closeAuthModal}
+          onClick={handleClose}
           className="absolute top-5 right-5 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
         >
           <X className="w-5 h-5" />
@@ -119,7 +135,7 @@ export const AuthModal: React.FC = () => {
           <p className="text-sm text-slate-400 mt-1">
             {step === "phone"
               ? "Sign in or register with your mobile number"
-              : `Enter the 6-digit code sent via ${channel === "whatsapp" ? "WhatsApp" : "SMS"} to ${phone}`}
+              : `Enter the 6-digit code sent via SMS to +91 ${phone}`}
           </p>
         </div>
 
@@ -175,88 +191,74 @@ export const AuthModal: React.FC = () => {
               />
             </div>
 
-            {/* Phone input */}
+            {/* Phone input with fixed +91 badge */}
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-1">
                 Mobile Number
               </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                  <Phone className="w-4 h-4" />
+              <div className="relative flex items-center">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Phone className="w-4 h-4 text-slate-500" />
+                  <span className="ml-2 font-mono font-semibold text-slate-200 text-sm border-r border-slate-700 pr-2.5">+91</span>
                 </div>
                 <input
                   type="tel"
                   required
+                  maxLength={10}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono"
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    setPhone(val);
+                  }}
+                  placeholder="00000 00000"
+                  className="w-full pl-20 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all font-mono tracking-wider"
                 />
-              </div>
-            </div>
-
-            {/* Channel Selection (SMS vs WhatsApp) */}
-            <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
-                OTP Delivery Method
-              </label>
-              <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setChannel("sms")}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all ${
-                    channel === "sms"
-                      ? "bg-slate-800 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-artisan-400" />
-                  SMS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setChannel("whatsapp")}
-                  className={`flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-lg text-xs font-semibold transition-all ${
-                    channel === "whatsapp"
-                      ? "bg-emerald-950 text-emerald-300 border border-emerald-600/50 shadow-sm"
-                      : "text-slate-400 hover:text-emerald-400"
-                  }`}
-                >
-                  <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                  WhatsApp
-                </button>
               </div>
             </div>
 
             <Button
               type="submit"
               isLoading={isLoading}
-              className={`w-full mt-2 ${
-                channel === "whatsapp" ? "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500" : ""
-              }`}
+              className="w-full mt-2"
               size="lg"
             >
               Get Verification Code
               <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
+
+            {/* Dev Quick Test Bypass Buttons */}
+            <div className="pt-3 mt-2 border-t border-slate-800/80">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-artisan-400" />
+                  Dev Test 1-Click:
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => devLogin("seller")}
+                    className="px-2.5 py-1 rounded-lg bg-artisan-500/10 hover:bg-artisan-500/20 border border-artisan-500/30 text-artisan-400 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Hammer className="w-3 h-3" /> Dev Seller
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => devLogin("buyer")}
+                    className="px-2.5 py-1 rounded-lg bg-ochre-500/10 hover:bg-ochre-500/20 border border-ochre-500/30 text-ochre-400 text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <ShoppingBag className="w-3 h-3" /> Dev Buyer
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
         )}
 
-        {/* Step 2: OTP Verification with dynamic 6-box '-' segmented display */}
+        {/* Step 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
         {step === "otp" && (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
-            {/* Dev Mode Notification */}
-            {devOtpHint && (
-              <div className="p-3 bg-ochre-500/10 border border-ochre-500/20 rounded-xl text-xs text-ochre-300 flex items-center justify-between">
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Sparkles className="w-3.5 h-3.5 text-ochre-400" />
-                  Dev Mode Active:
-                </span>
-                <Badge variant="secondary" size="sm">
-                  Mock OTP: {devOtpHint}
-                </Badge>
-              </div>
-            )}
-
             {/* 6-Digit Segmented Box UI */}
             <div>
               <label className="block text-xs font-medium text-slate-300 mb-2.5 text-center">
@@ -281,7 +283,7 @@ export const AuthModal: React.FC = () => {
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
 
-                {/* 6 Box Display showing '-' when empty and typed digit when filled */}
+                {/* 6 Box Display showing translucent '0' when empty and typed digit when filled */}
                 <div className="grid grid-cols-6 gap-2 w-full max-w-xs">
                   {[0, 1, 2, 3, 4, 5].map((index) => {
                     const digit = otp[index];
@@ -294,11 +296,15 @@ export const AuthModal: React.FC = () => {
                           digit
                             ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
                             : isCurrent
-                            ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
-                            : "bg-slate-950 border-slate-800 text-slate-600"
+                            ? "bg-slate-950 border-artisan-500 text-slate-500/40 ring-2 ring-artisan-500/20"
+                            : "bg-slate-950 border-slate-800 text-slate-700/40"
                         }`}
                       >
-                        {digit ? digit : "-"}
+                        {digit ? (
+                          <span className="text-white">{digit}</span>
+                        ) : (
+                          <span className="text-slate-600/40 opacity-40">0</span>
+                        )}
                       </div>
                     );
                   })}
@@ -312,7 +318,7 @@ export const AuthModal: React.FC = () => {
                 onClick={() => setStep("phone")}
                 className="hover:text-slate-200 transition-colors"
               >
-                ← Change Number / Method
+                ← Change Number
               </button>
               <button
                 type="button"

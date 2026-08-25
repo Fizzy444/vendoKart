@@ -1,6 +1,22 @@
 {
+<<<<<<< HEAD
   "extraPaths": [
     "backend",
     "."
+=======
+  "venvPath": "backend",
+  "venv": ".venv",
+  "include": [
+    "backend"
+  ],
+  "exclude": [
+    "**/__pyrefly_virtual__/**",
+    "**/__pycache__",
+    "backend/.venv"
+  ],
+  "extraPaths": [
+    "backend",
+    "backend/.venv/Lib/site-packages"
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
   ]
 }

@@ -12,6 +12,7 @@ interface AuthContextType {
   openAuthModal: (role?: "seller" | "buyer") => void;
   closeAuthModal: () => void;
   login: (phone: string, otp: string, role: "seller" | "buyer", name?: string) => Promise<void>;
+  devLogin: (role?: "seller" | "buyer", name?: string, phone?: string) => Promise<void>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   hasRole: (role: UserRole) => boolean;
@@ -61,6 +62,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsAuthModalOpen(false);
   };
 
+  const devLogin = async (
+    role: "seller" | "buyer" = "seller",
+    name?: string,
+    phone?: string
+  ) => {
+    const res = await api.devLogin(role, name, phone);
+    setUser(res.user);
+    setIsAuthModalOpen(false);
+  };
+
   const logout = () => {
     api.logout();
     setUser(null);
@@ -81,6 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openAuthModal,
         closeAuthModal,
         login,
+        devLogin,
         logout,
         refreshUser,
         hasRole,

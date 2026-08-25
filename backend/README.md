@@ -1,6 +1,6 @@
 # Artisan Commerce Backend
 
-FastAPI asynchronous REST API with MongoDB (Motor) and Redis integration.
+FastAPI asynchronous REST API with PostgreSQL (SQLAlchemy 2.0 async + asyncpg) and Redis integration.
 
 ## Local Development
 

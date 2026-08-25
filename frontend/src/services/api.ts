@@ -81,11 +81,11 @@ class ApiService {
     return this.request<HealthResponse>("/health");
   }
 
-  // Auth: Send OTP via SMS or WhatsApp
-  async sendOtp(phone: string, channel: "sms" | "whatsapp" = "sms"): Promise<OTPResponse> {
+  // Auth: Send OTP via SMS
+  async sendOtp(phone: string): Promise<OTPResponse> {
     return this.request<OTPResponse>("/auth/otp/send", {
       method: "POST",
-      body: JSON.stringify({ phone, channel }),
+      body: JSON.stringify({ phone }),
     });
   }
 
@@ -106,6 +106,22 @@ class ApiService {
     return res;
   }
 
+  // Auth: 1-Click Dev Test Login
+  async devLogin(
+    role: "seller" | "buyer" = "seller",
+    name?: string,
+    phone?: string
+  ): Promise<AuthResponse> {
+    const res = await this.request<AuthResponse>("/auth/dev-login", {
+      method: "POST",
+      body: JSON.stringify({ role, name, phone }),
+    });
+    if (res.tokens) {
+      this.setTokens(res.tokens);
+    }
+    return res;
+  }
+
   // Auth: Get Current Profile
   async getMe(): Promise<User> {
     return this.request<User>("/auth/me", {}, true);
@@ -119,6 +135,138 @@ class ApiService {
         method: "PUT",
         body: JSON.stringify(data),
       },
+      true
+    );
+  }
+
+  // Seller: Get Current Seller Profile & Workspace Info
+  async getSellerProfile(): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>("/sellers/me", {}, true);
+  }
+
+  // Seller: Update Seller Profile
+  async updateSellerProfile(
+    data: import("@/types/seller").SellerProfileUpdatePayload
+  ): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>(
+      "/sellers/me",
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Seller: Update Location
+  async updateSellerLocation(
+    location: import("@/types/seller").SellerLocation
+  ): Promise<import("@/types/seller").SellerProfile> {
+    return this.request<import("@/types/seller").SellerProfile>(
+      "/sellers/me/location",
+      {
+        method: "POST",
+        body: JSON.stringify(location),
+      },
+      true
+    );
+  }
+
+  // Seller: Get Public Profile
+  async getPublicSeller(sellerId: string): Promise<import("@/types/seller").SellerPublicProfile> {
+    return this.request<import("@/types/seller").SellerPublicProfile>(`/sellers/${sellerId}`);
+  }
+
+  // Products: Calculate Real-time Pricing Preview (§11)
+  async previewProductPricing(
+    data: import("@/types/product").PricingPreviewRequest
+  ): Promise<import("@/types/product").PricingPreviewResponse> {
+    return this.request<import("@/types/product").PricingPreviewResponse>(
+      "/products/pricing-preview",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+  }
+
+  // Products: Create New Product Listing
+  async createProduct(
+    data: import("@/types/product").ProductCreatePayload
+  ): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(
+      "/products",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Products: Get My Listed Products
+  async getMyProducts(): Promise<import("@/types/product").Product[]> {
+    return this.request<import("@/types/product").Product[]>("/products/me", {}, true);
+  }
+
+  // Products: Get Single Product
+  async getProduct(productId: string): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(`/products/${productId}`);
+  }
+
+  // Products: Update Product Listing
+  async updateProduct(
+    productId: string,
+    data: Partial<import("@/types/product").ProductCreatePayload>
+  ): Promise<import("@/types/product").Product> {
+    return this.request<import("@/types/product").Product>(
+      `/products/${productId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  // Products: Delete Product
+  async deleteProduct(productId: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(
+      `/products/${productId}`,
+      {
+        method: "DELETE",
+      },
+      true
+    );
+  }
+
+  // Products: Public Marketplace List
+  async listMarketplaceProducts(
+    category?: string,
+    limit: number = 50
+  ): Promise<import("@/types/product").Product[]> {
+    const query = category ? `?category=${encodeURIComponent(category)}&limit=${limit}` : `?limit=${limit}`;
+    return this.request<import("@/types/product").Product[]>(`/products/marketplace${query}`);
+  }
+
+  // Verification & Trust (§12 Live Camera Capture & Presence Verification)
+  async submitLiveEvidence(
+    data: import("@/types/verification").LiveEvidenceSubmissionPayload
+  ): Promise<import("@/types/verification").VerificationResponse> {
+    return this.request<import("@/types/verification").VerificationResponse>(
+      "/verification/submit-live-evidence",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      },
+      true
+    );
+  }
+
+  async getVerificationStatus(): Promise<import("@/types/verification").TrustSignalBreakdown> {
+    return this.request<import("@/types/verification").TrustSignalBreakdown>(
+      "/verification/status",
+      {},
       true
     );
   }

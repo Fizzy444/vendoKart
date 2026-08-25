@@ -17,9 +17,21 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-super-secret-key-change-in-production-1234567890"
     API_V1_STR: str = "/api/v1"
 
-    # MongoDB
-    MONGODB_URI: str = "mongodb://localhost:27017"
-    MONGODB_DATABASE: str = "artisan_commerce"
+    # PostgreSQL Database
+    POSTGRES_USER: str = "artisan"
+    POSTGRES_PASSWORD: str = "artisan_dev_password"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "artisan_commerce"
+    DATABASE_URL: Union[str, None] = None
+
+    @property
+    def async_database_url(self) -> str:
+        if self.DATABASE_URL:
+            if self.DATABASE_URL.startswith("postgresql://"):
+                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return self.DATABASE_URL
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -37,18 +49,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # OTP
-    OTP_PROVIDER: str = "twilio"
-    OTP_API_KEY: str = ""
+    # OTP & SMS Gateway (2Factor.in)
+    OTP_PROVIDER: str = "2factor"
     OTP_EXPIRY_SECONDS: int = 300
-    DEV_MOCK_OTP: str = "123456"
 
-    # Twilio Configuration (Loaded from .env)
-    TWILIO_ACCOUNT_SID: str = ""
-    TWILIO_AUTH_TOKEN: str = ""
-    TWILIO_VERIFY_SERVICE_SID: str = ""
-    TWILIO_PHONE_NUMBER: str = ""
-    TWILIO_WHATSAPP_NUMBER: str = "whatsapp:+14155238886"
+    # 2Factor.in Configuration (voice call OTP)
+    TWOFACTOR_API_KEY: str = ""
+    TWOFACTOR_TEMPLATE_NAME: str = "VENDOKART_OTP"
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [

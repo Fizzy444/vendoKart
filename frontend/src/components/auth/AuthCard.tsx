@@ -24,8 +24,6 @@ import {
   Heart,
   Palette,
   Check,
-  MessageSquare,
-  MessageCircle,
 } from "lucide-react";
 
 interface AuthCardProps {
@@ -41,7 +39,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, devLogin } = useAuth();
 
   const otpInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,35 +48,34 @@ export const AuthCard: React.FC<AuthCardProps> = ({
 
   const [mode, setMode] = useState<"login" | "register">(queryMode || initialMode);
   const [role, setRole] = useState<"seller" | "buyer">(queryRole || initialRole);
-  const [channel, setChannel] = useState<"sms" | "whatsapp">("sms");
   const [step, setStep] = useState<"form" | "otp">("form");
 
-  // Form Fields (Empty defaults with no placeholders)
+  // Form Fields
   const [phone, setPhone] = useState<string>("");
   const [name, setName] = useState<string>("");
   const [businessName, setBusinessName] = useState<string>("");
   const [craftCategory, setCraftCategory] = useState<string>("Handloom & Textiles");
   const [buyerInterest, setBuyerInterest] = useState<string>("Home Decor & Crafts");
   const [otp, setOtp] = useState<string>("");
-  const [devOtpHint, setDevOtpHint] = useState<string | null>(null);
 
   // Status
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
-  // Sync if query params change
+  // Sync if query params change and reset previous OTP session
   useEffect(() => {
     if (queryRole && (queryRole === "seller" || queryRole === "buyer")) {
       setRole(queryRole);
     }
-  }, [queryRole]);
-
-  useEffect(() => {
     if (queryMode && (queryMode === "login" || queryMode === "register")) {
       setMode(queryMode);
     }
-  }, [queryMode]);
+    setStep("form");
+    setOtp("");
+    setError(null);
+    setIsLoading(false);
+  }, [queryRole, queryMode]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -97,25 +94,28 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     }
   }, [step]);
 
+  const getFullPhone = () => {
+    const raw = phone.replace(/\D/g, "");
+    return `+91${raw.slice(-10)}`;
+  };
+
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
-      if (cleanPhone.length < 10) {
-        throw new Error("Please enter your complete mobile number with country code");
+      const raw = phone.replace(/\D/g, "");
+      if (raw.length < 10) {
+        throw new Error("Please enter your complete 10-digit mobile number");
       }
 
-      const response = await api.sendOtp(cleanPhone, channel);
-      if (response.is_dev_mode && response.dev_otp) {
-        setDevOtpHint(response.dev_otp);
-      }
+      const fullPhone = getFullPhone();
+      await api.sendOtp(fullPhone);
       setResendCooldown(30);
       setStep("otp");
     } catch (err: any) {
-      setError(err.message || "Failed to send verification code. Please check your network connection.");
+      setError(err.message || "Failed to send SMS verification code. Please check your network connection.");
     } finally {
       setIsLoading(false);
     }
@@ -127,12 +127,12 @@ export const AuthCard: React.FC<AuthCardProps> = ({
     setIsLoading(true);
 
     try {
-      const cleanPhone = phone.replace(/\s+/g, "");
+      const fullPhone = getFullPhone();
       const finalName = role === "seller" 
         ? (name || businessName || undefined) 
         : (name || undefined);
 
-      await login(cleanPhone, otp, role, finalName);
+      await login(fullPhone, otp, role, finalName);
       
       // Navigate to destination
       router.push(redirectUrl);
@@ -306,9 +306,9 @@ export const AuthCard: React.FC<AuthCardProps> = ({
         <div className="relative z-10 pt-8 mt-8 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            Twilio Verified Security
+            2Factor.in Verified High-Speed SMS
           </span>
-          <span>SMS & WhatsApp OTP</span>
+          <span>Fast Passwordless Login</span>
         </div>
       </div>
 
@@ -327,7 +327,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
               </h1>
               <p className="text-xs text-slate-400 mt-0.5">
                 {step === "otp"
-                  ? `Enter the 6-digit code sent via ${channel === "whatsapp" ? "WhatsApp" : "SMS"} to ${phone}`
+                  ? `Enter the 6-digit code sent via SMS to +91 ${phone}`
                   : mode === "login"
                   ? "Sign in with your registered mobile number"
                   : `Join vendoKart as ${role === "seller" ? "an Artisan Seller" : "a Buyer"}`}
@@ -510,61 +510,33 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 </div>
               )}
 
-              {/* Phone number field */}
+              {/* Phone number field with fixed +91 badge */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Mobile Number (with country code) <span className="text-artisan-400">*</span>
+                  Mobile Number <span className="text-artisan-400">*</span>
                 </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                    <Phone className="w-4 h-4" />
+                <div className="relative flex items-center">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-4 h-4 text-slate-500" />
+                    <span className="ml-2 font-mono font-semibold text-slate-200 text-sm border-r border-slate-700 pr-2.5">+91</span>
                   </div>
                   <input
                     type="tel"
                     required
+                    maxLength={10}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 text-sm font-mono focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setPhone(val);
+                    }}
+                    placeholder="00000 00000"
+                    className="w-full pl-20 pr-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-700/60 text-sm font-mono tracking-wider focus:outline-none focus:border-artisan-500 focus:ring-1 focus:ring-artisan-500 transition-all"
                   />
                 </div>
-              </div>
-
-              {/* Delivery Channel Selector: SMS vs WhatsApp */}
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
-                  Receive OTP Code Via
-                </label>
-                <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-slate-950 rounded-2xl border border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setChannel("sms")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                      channel === "sms"
-                        ? "bg-slate-800 text-white shadow-sm border border-slate-700"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 text-artisan-400" />
-                    SMS Text Message
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setChannel("whatsapp")}
-                    className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-semibold transition-all ${
-                      channel === "whatsapp"
-                        ? "bg-emerald-950/60 text-emerald-300 border border-emerald-600/40 shadow-sm"
-                        : "text-slate-400 hover:text-emerald-400"
-                    }`}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-                    WhatsApp Message
-                  </button>
-                </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  {channel === "whatsapp"
-                    ? "Twilio will deliver the 6-digit code to your WhatsApp."
-                    : "Twilio will send standard SMS verification to your phone."}
+                  We will send a 6-digit verification code to your phone via SMS.
                 </p>
               </div>
 
@@ -574,56 +546,63 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                 isLoading={isLoading}
                 variant={role === "seller" ? "primary" : "primary"}
                 className={`w-full mt-4 py-3 ${
-                  channel === "whatsapp"
-                    ? "bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500 text-white"
-                    : role === "buyer"
-                    ? "bg-ochre-600 hover:bg-ochre-500 focus:ring-ochre-500"
-                    : ""
+                  role === "buyer" ? "bg-ochre-600 hover:bg-ochre-500 focus:ring-ochre-500" : ""
                 }`}
                 size="lg"
               >
                 <span>
-                  {channel === "whatsapp"
-                    ? "Send Code via WhatsApp"
-                    : mode === "login"
-                    ? "Send Code via SMS"
-                    : "Register & Continue"}
+                  {mode === "login" ? "Get Verification Code" : "Register & Continue"}
                 </span>
                 <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
+
+              {/* Dev Test Quick Login Bypass */}
+              <div className="pt-4 mt-2 border-t border-slate-800/80">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 text-artisan-400" />
+                    Dev 1-Click Test:
+                  </span>
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        devLogin("seller");
+                        router.push(redirectUrl);
+                      }}
+                      className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-artisan-500/10 hover:bg-artisan-500/20 border border-artisan-500/30 text-artisan-400 text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Hammer className="w-3 h-3" /> Test Seller
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        devLogin("buyer");
+                        router.push(redirectUrl);
+                      }}
+                      className="flex-1 sm:flex-none px-3 py-1.5 rounded-xl bg-ochre-500/10 hover:bg-ochre-500/20 border border-ochre-500/30 text-ochre-400 text-xs font-semibold flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <ShoppingBag className="w-3 h-3" /> Test Buyer
+                    </button>
+                  </div>
+                </div>
+              </div>
             </form>
           )}
 
-          {/* STEP 2: OTP Verification with dynamic 6-box '-' segmented display */}
+          {/* STEP 2: OTP Verification with dynamic 6-box translucent '0' segmented display */}
           {step === "otp" && (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
-              {/* Dev Mode Notification Badge */}
-              {devOtpHint && (
-                <div className="p-3.5 bg-ochre-500/10 border border-ochre-500/20 rounded-2xl text-xs text-ochre-300 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 font-medium">
-                    <Sparkles className="w-4 h-4 text-ochre-400" />
-                    Dev Sandbox Mock OTP:
-                  </span>
-                  <Badge variant="secondary" size="sm" className="font-mono font-bold tracking-wider">
-                    {devOtpHint}
-                  </Badge>
-                </div>
-              )}
-
-              {/* Channel Indicator */}
+              {/* SMS Notification Banner */}
               <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                 <span className="text-slate-400 flex items-center gap-1.5">
-                  {channel === "whatsapp" ? (
-                    <MessageCircle className="w-4 h-4 text-emerald-400" />
-                  ) : (
-                    <MessageSquare className="w-4 h-4 text-artisan-400" />
-                  )}
-                  Delivered via {channel === "whatsapp" ? "WhatsApp" : "SMS"}:
+                  <Phone className="w-3.5 h-3.5 text-artisan-400" />
+                  SMS Sent to:
                 </span>
-                <span className="font-mono text-slate-200 font-semibold">{phone}</span>
+                <span className="font-mono text-slate-200 font-semibold">+91 {phone}</span>
               </div>
 
-              {/* 6-Digit Segmented Pin Display with - placeholders */}
+              {/* 6-Digit Segmented Pin Display with translucent 0 placeholders */}
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-3 text-center">
                   Enter 6-Digit Security Code
@@ -647,7 +626,7 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
 
-                  {/* 6 Segmented Boxes showing '-' when empty and typed digit when filled */}
+                  {/* 6 Segmented Boxes showing translucent '0' when empty and typed digit when filled */}
                   <div className="grid grid-cols-6 gap-2 sm:gap-3 w-full max-w-sm">
                     {[0, 1, 2, 3, 4, 5].map((index) => {
                       const digit = otp[index];
@@ -660,11 +639,15 @@ export const AuthCard: React.FC<AuthCardProps> = ({
                             digit
                               ? "bg-slate-900 border-artisan-500 text-white shadow-sm shadow-artisan-500/20"
                               : isCurrent
-                              ? "bg-slate-950 border-artisan-500 text-slate-400 ring-2 ring-artisan-500/20"
-                              : "bg-slate-950 border-slate-800 text-slate-600"
+                              ? "bg-slate-950 border-artisan-500 text-slate-500/40 ring-2 ring-artisan-500/20"
+                              : "bg-slate-950 border-slate-800 text-slate-700/40"
                           }`}
                         >
-                          {digit ? digit : "-"}
+                          {digit ? (
+                            <span className="text-white">{digit}</span>
+                          ) : (
+                            <span className="text-slate-600/40 opacity-40">0</span>
+                          )}
                         </div>
                       );
                     })}

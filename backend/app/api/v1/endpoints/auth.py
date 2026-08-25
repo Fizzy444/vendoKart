@@ -5,6 +5,7 @@ from app.models.user import UserRole
 from app.schemas.response import GenericResponse
 from app.schemas.user import (
     AuthResponse,
+    DevLoginRequest,
     OTPRequest,
     OTPResponse,
     OTPVerifyRequest,
@@ -20,21 +21,29 @@ logger = logging.getLogger("artisan.auth")
 router = APIRouter()
 
 
+@router.post("/dev-login", response_model=AuthResponse)
+async def dev_quick_login(request: DevLoginRequest = DevLoginRequest()):
+    """
+    Instant 1-click test login for development without SMS OTP.
+    Auto-creates and authenticates a test Seller or Buyer account.
+    """
+    auth_result = await AuthService.dev_test_login(
+        role=request.role,
+        name=request.name,
+        phone=request.phone,
+    )
+    return auth_result
+
+
 @router.post("/otp/send", response_model=OTPResponse)
 async def send_otp(request: OTPRequest):
     """
-    Send OTP code to the provided phone number via SMS or WhatsApp using Twilio.
-    In development mode, returns the mock OTP code directly for convenience.
+    Generate and send 6-digit SMS OTP code via 2Factor.in.
     """
-    channel = (request.channel or "sms").lower()
-    otp, is_dev = await OTPService.generate_otp(request.phone, channel=channel)
-    channel_display = "WhatsApp" if channel == "whatsapp" else "SMS"
+    await OTPService.generate_otp(request.phone)
     return OTPResponse(
-        message=f"OTP sent successfully via {channel_display}",
+        message="OTP sent successfully via SMS",
         phone=request.phone,
-        channel=channel,
-        is_dev_mode=is_dev,
-        dev_otp=otp if is_dev else None,
     )
 
 

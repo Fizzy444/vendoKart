@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, devLogin } = useAuth();
   const [healthData, setHealthData] = useState<HealthResponse | null>(null);
   const [healthLoading, setHealthLoading] = useState<boolean>(true);
 
@@ -100,6 +100,28 @@ export default function HomePage() {
               </>
             )}
           </div>
+
+          {/* Dev Quick Test Login Buttons */}
+          {!user && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => devLogin("seller")}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-artisan-500/30 hover:border-artisan-500/60 text-artisan-400 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm shadow-artisan-500/10 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-artisan-400" />
+                ⚡ Dev Test: Instant Seller Login
+              </button>
+              <button
+                type="button"
+                onClick={() => devLogin("buyer")}
+                className="px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-ochre-500/30 hover:border-ochre-500/60 text-ochre-400 text-xs font-semibold flex items-center gap-2 transition-all shadow-sm shadow-ochre-500/10 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-ochre-400" />
+                ⚡ Dev Test: Instant Buyer Login
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
@@ -113,7 +135,7 @@ export default function HomePage() {
                 Foundations & Infrastructure Status
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Real-time connection verification for FastAPI, MongoDB, Redis, and Security Tokens.
+                Real-time connection verification for FastAPI, PostgreSQL, Redis, and Security Tokens.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -132,7 +154,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
                   <Database className="w-4 h-4 text-emerald-400" />
-                  MongoDB (System of Record)
+                  PostgreSQL (System of Record)
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>

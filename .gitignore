@@ -27,6 +27,8 @@ dist/
 .coverage
 htmlcov/
 .pytest_cache/
+*.db
+*.sqlite*
 
 # Logs
 *.log

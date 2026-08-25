@@ -1,1 +1,4 @@
-# Placeholder for speech processing agent
+# Speech processing module
+from .transcriber import Transcriber
+
+__all__ = ["Transcriber"]
