@@ -1,5 +1,4 @@
 /** @type {import('tailwindcss').Config} */
-<<<<<<< HEAD
 module.exports = {
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
@@ -35,6 +34,18 @@ module.exports = {
           800: "#92400e",
           900: "#78350f",
         },
+        brand: {
+          50: "#fff7ed",
+          100: "#ffedd5",
+          200: "#fed7aa",
+          300: "#fdba74",
+          400: "#fb923c",
+          500: "#f97316",
+          600: "#ea580c",
+          700: "#c2410c",
+          800: "#9a3412",
+          900: "#7c2d12",
+        },
         slate: {
           850: "#172033",
           950: "#0b0f19",
@@ -51,30 +62,3 @@ module.exports = {
   },
   plugins: [],
 };
-=======
-export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        brand: {
-          50:  '#fff7ed',
-          100: '#ffedd5',
-          200: '#fed7aa',
-          300: '#fdba74',
-          400: '#fb923c',
-          500: '#f97316',
-          600: '#ea580c',
-          700: '#c2410c',
-          800: '#9a3412',
-          900: '#7c2d12',
-        }
-      }
-    },
-  },
-  plugins: [],
-}
->>>>>>> branch-muthu

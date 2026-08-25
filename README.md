@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # vendoKart 🎨✨
 > **AI Virtual Business Manager for Traditional Artisans & Handcrafted Heritage Commerce**
 
@@ -6,7 +5,7 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python)](https://python.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
-[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
+[![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v3.4-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-amber.svg?style=flat-square)](LICENSE)
 
 ---
@@ -14,6 +13,8 @@
 ## 📖 About vendoKart
 
 **vendoKart** is an AI-powered commerce enablement platform designed to bridge the digital divide for traditional Indian artisans, handloom weavers, and craft clusters. It acts as an autonomous **Virtual Business Manager**, enabling master craftspeople to catalog products through voice in regional languages, capture studio-quality photos with real-time CV guidance, price items fairly using deterministic math, verify physical studio presence, and reach global buyers.
+
+> **Take a photo + Speak about the product → AI prepares the product listing → Sell Online**
 
 ---
 
@@ -35,7 +36,7 @@
 ### Frontend
 - **Framework**: Next.js 16 (App Router, Turbopack)
 - **Language**: TypeScript 5.0+
-- **Styling**: Tailwind CSS v4, Lucide Icons, Custom Artisan Theme
+- **Styling**: Tailwind CSS, Lucide Icons, Custom Artisan Theme
 - **State & Networking**: React Hooks, Native Fetch API, HTML5 Canvas CV
 
 ### Backend
@@ -55,24 +56,23 @@ vendoKart/
 │   ├── app/
 │   │   ├── api/v1/           # API Endpoints (auth, sellers, products, verification)
 │   │   ├── core/             # Database connections, config, JWT security
-│   │   ├── models/           # Pydantic DB models (User, Seller, Product, Verification)
+│   │   ├── models/           # SQLAlchemy 2.0 DB models (User, Seller, Product, Verification)
 │   │   ├── repositories/     # Data persistence layers with in-memory fallbacks
-│   │   ├── schemas/          # Request & response schemas
-│   │   └── services/         # Business logic (pricing engine, trust engine, OTP)
-│   ├── tests/                # Pytest unit & integration test suite
-│   └── requirements.txt      # Python dependencies
-│
-├── frontend/                 # Next.js 16 Web Application
+│   │   ├── schemas/          # Request & response Pydantic schemas
+│   │   └── services/         # Business logic (pricing, OTP, trust verification)
+│   ├── tests/                # Automated pytest test suites
+│   ├── requirements.txt      # Python dependencies
+│   └── Dockerfile            # Backend container definition
+├── frontend/                 # Next.js 16 Frontend Web Application
 │   ├── src/
-│   │   ├── app/              # Next.js App Router (dashboard, auth pages, layout)
-│   │   ├── components/       # UI & Seller components (LiveCamera, AddProduct, Wizard)
-│   │   ├── context/          # Auth & Role Context Provider
-│   │   ├── services/         # API client service layer
-│   │   └── types/            # TypeScript data contracts & interfaces
-│   ├── package.json
-│   └── tailwind.config.ts
-│
-└── README.md
+│   │   ├── app/              # Next.js App Router (dashboard, auth, marketplace)
+│   │   ├── components/       # UI components (auth, seller studio, modals)
+│   │   ├── context/          # React AuthContext
+│   │   ├── services/         # API client service
+│   │   └── types/            # TypeScript definitions
+│   └── package.json          # Frontend dependencies & scripts
+├── docker-compose.yml        # Multi-container orchestration (Postgres, API, UI)
+└── README.md                 # Project documentation
 ```
 
 ---
@@ -80,72 +80,29 @@ vendoKart/
 ## 🚀 Getting Started
 
 ### Prerequisites
-- **Node.js**: v18.17.0+ or v20+
-- **Python**: v3.11+
-- **PostgreSQL**: PostgreSQL 16+ or Docker container (resilient async SQLite store enabled for offline local dev/testing)
+- Node.js 18+ & npm
+- Python 3.11+
+- PostgreSQL 16 (or Docker)
 
----
-
-### 1. Backend Setup
-
+### Backend Setup
 ```bash
-# Navigate to backend directory
 cd backend
-
-# Create and activate Python virtual environment
 python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On macOS/Linux:
-source .venv/bin/activate
-
-# Install dependencies
+.venv\Scripts\activate      # On Windows
 pip install -r requirements.txt
-
-# Start the FastAPI server
 uvicorn app.main:app --reload --port 8000
 ```
 
-> **API Documentation**: Open [http://localhost:8000/docs](http://localhost:8000/docs) in your browser for the interactive Swagger UI.
-
----
-
-### 2. Frontend Setup
-
+### Frontend Setup
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install Node dependencies
 npm install
-
-# Start the Next.js development server
 npm run dev
 ```
 
-> **Web App**: Open [http://localhost:3000](http://localhost:3000) to view the application.
-
 ---
 
-## 🧪 Running Tests
-
-### Backend Tests (Pytest)
-```bash
-cd backend
-.venv\Scripts\python -m pytest tests/ -v
-```
-
-### Frontend Build Verification
-```bash
-cd frontend
-npm run build
-```
-
----
-
-## 🔐 Environment Configuration
-
-Create a `.env` file in `backend/` and `frontend/`:
+## ⚙️ Environment Configuration
 
 ### `backend/.env`
 ```env
@@ -184,156 +141,3 @@ Distributed under the MIT License. See `LICENSE` for more information.
 <div align="center">
   <sub>Built with ❤️ for Indian Artisans & Traditional Heritage Craftspeople.</sub>
 </div>
-=======
-# AI-Powered Digital Business Assistant for Artisans
-
-## 📌 Project Overview
-
-This project is an AI-powered mobile application designed to help
-micro-entrepreneurs, artisans, and weavers sell their products online
-without requiring advanced technical or digital skills.
-
-The application acts as a **virtual business assistant**, helping artisans
-convert their physical products into professional digital listings.
-
-The main idea is simple:
-
-> **Take a photo + Speak about the product → AI prepares the product listing → Sell Online**
-
----
-
-## 🎯 Problem
-
-Many traditional artisans and micro-entrepreneurs have excellent products
-but face difficulties when entering the digital market.
-
-Common problems include:
-
-- Difficulty taking professional product photographs
-- Difficulty writing product descriptions
-- Language barriers
-- Lack of technical knowledge
-- Difficulty deciding competitive prices
-- Limited access to online customers
-- Dependence on temporary physical exhibitions and fairs
-
----
-
-## 💡 Our Solution
-
-We are developing a simple and accessible mobile application that uses AI
-to automate the difficult parts of digital commerce.
-
-### Main Features
-
-### 1. 📸 AI Image Enhancer & Studio
-
-The application helps artisans create professional product photographs.
-
-AI can:
-
-- Remove unwanted backgrounds
-- Improve lighting
-- Enhance product visibility
-- Resize and format images
-- Prepare images for online marketplaces
-
----
-
-### 2. 🎤 Multilingual Auto-Cataloger
-
-Artisans can describe their products using their own language through voice.
-
-For example:
-
-> "இந்த கூடை மூங்கில் வைத்து கையால் செய்யப்பட்டது."
-
-The system processes the voice input and generates a professional
-product listing.
-
-It can generate:
-
-- Product name
-- Product description
-- Product category
-- Keywords
-- English/Hindi content
-
-This reduces the need for typing and English-language knowledge.
-
----
-
-### 3. 💰 Dynamic Pricing Assistant
-
-The system provides a suggested selling price based on available
-information such as:
-
-- Product details
-- Raw material cost
-- Production cost
-- Similar products
-- Market trends
-
-The suggested price is provided as a recommendation so that the artisan
-can make a better pricing decision.
-
----
-
-## 👥 My Contribution
-
-As a contributor to this project, my work focuses on helping design and
-develop the application into a simple, accessible, and practical solution
-for artisans.
-
-### Areas I Contributed To
-
-- Understanding and breaking down the problem statement
-- Designing the application workflow
-- Planning user-friendly UI/UX
-- Working on the product listing workflow
-- Supporting AI-based product cataloging concepts
-- Contributing to application development
-- Testing features and identifying usability issues
-- Improving the overall user experience
-- Collaborating with the team on technical decisions
-
-> **Note:** Individual contributions may vary as the project continues to
-> evolve.
-
----
-
-## 🔄 Application Workflow
-
-```text
-       ARTISAN
-          │
-          ▼
-   Take Product Photo
-          │
-          ▼
-   AI Image Enhancement
-          │
-          ▼
-   Describe Product by Voice
-          │
-          ▼
-   AI Understanding & Translation
-          │
-          ▼
-   Automatic Product Catalog
-          │
-          ▼
-   AI Price Recommendation
-          │
-          ▼
-    Artisan Reviews
-          │
-          ▼
-     Product Listing
-          │
-          ▼
-   Online Marketplace
-          │
-          ▼
-       CUSTOMERS
->>>>>>> branch-muthu

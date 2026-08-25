@@ -1,5 +1,4 @@
 import logging
-import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from sqlalchemy import delete, select
@@ -62,26 +61,26 @@ class ProductRepository:
             craft_category=craft_cat,
             craft_specialty=product.craft_specialty,
             material_type=product.material_type,
-            material_cost_inr=float(product.material_cost_inr),
-            labour_daily_rate_inr=float(product.labour_daily_rate_inr),
-            workers_count=int(product.workers_count),
-            daily_capacity_units=float(product.daily_capacity_units),
-            production_days=float(product.production_days),
-            packaging_cost_inr=float(product.packaging_cost_inr),
-            energy_cost_inr=float(product.energy_cost_inr),
-            other_direct_cost_inr=float(product.other_direct_cost_inr),
-            target_margin_percent=float(product.target_margin_percent),
+            material_cost_inr=product.material_cost_inr,
+            labour_daily_rate_inr=product.labour_daily_rate_inr,
+            workers_count=product.workers_count,
+            daily_capacity_units=product.daily_capacity_units,
+            production_days=product.production_days,
+            packaging_cost_inr=product.packaging_cost_inr,
+            energy_cost_inr=product.energy_cost_inr,
+            other_direct_cost_inr=product.other_direct_cost_inr,
+            target_margin_percent=product.target_margin_percent,
             pricing=_sanitize_json(pricing_dict),
-            listed_price_inr=float(product.listed_price_inr),
-            stock_quantity=int(product.stock_quantity),
-            lead_time_days=int(product.lead_time_days),
-            is_customizable=bool(product.is_customizable),
+            listed_price_inr=product.listed_price_inr,
+            stock_quantity=product.stock_quantity,
+            lead_time_days=product.lead_time_days,
+            is_customizable=product.is_customizable,
             images=_sanitize_json(product.images or []),
             dimensions=_sanitize_json(dims_dict),
             tags=_sanitize_json(product.tags or []),
             status=status_val,
-            views_count=int(product.views_count or 0),
-            orders_count=int(product.orders_count or 0),
+            views_count=product.views_count or 0,
+            orders_count=product.orders_count or 0,
             created_at=product.created_at or datetime.now(timezone.utc),
             updated_at=product.updated_at or datetime.now(timezone.utc),
         )
@@ -101,7 +100,7 @@ class ProductRepository:
             return None
         try:
             async with db_state.session_factory() as session:
-                stmt = select(ProductModel).where(ProductModel.id == str(product_id))
+                stmt = select(ProductModel).where(ProductModel.id == product_id)
                 result = await session.execute(stmt)
                 prod_model = result.scalar_one_or_none()
                 if prod_model:
@@ -117,7 +116,7 @@ class ProductRepository:
             async with db_state.session_factory() as session:
                 stmt = (
                     select(ProductModel)
-                    .where((ProductModel.seller_id == str(seller_id)) | (ProductModel.user_id == str(seller_id)))
+                    .where((ProductModel.seller_id == seller_id) | (ProductModel.user_id == seller_id))
                     .order_by(ProductModel.created_at.desc())
                 )
                 result = await session.execute(stmt)
@@ -149,7 +148,7 @@ class ProductRepository:
             return None
         try:
             async with db_state.session_factory() as session:
-                stmt = select(ProductModel).where(ProductModel.id == str(product_id))
+                stmt = select(ProductModel).where(ProductModel.id == product_id)
                 result = await session.execute(stmt)
                 prod_model = result.scalar_one_or_none()
                 if not prod_model:
@@ -180,10 +179,11 @@ class ProductRepository:
             return False
         try:
             async with db_state.session_factory() as session:
-                stmt = delete(ProductModel).where(ProductModel.id == str(product_id))
+                stmt = delete(ProductModel).where(ProductModel.id == product_id)
                 result = await session.execute(stmt)
                 await session.commit()
-                return result.rowcount > 0
+                rowcount = getattr(result, "rowcount", None)
+                return bool(rowcount and rowcount > 0)
         except Exception as e:
             logger.error(f"Database error in product delete: {e}", exc_info=True)
             return False
