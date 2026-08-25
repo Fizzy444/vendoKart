@@ -3,6 +3,8 @@ from app.repositories.seller_repository import SellerRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.verification_repository import VerificationRepository
 from app.repositories.chroma_repository import ChromaRepository
+from app.repositories.order_repository import OrderRepository
+from app.repositories.negotiation_repository import NegotiationRepository
 
 __all__ = [
     "UserRepository",
@@ -10,5 +12,7 @@ __all__ = [
     "ProductRepository",
     "VerificationRepository",
     "ChromaRepository",
+    "OrderRepository",
+    "NegotiationRepository",
 ]
 

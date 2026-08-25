@@ -52,10 +52,33 @@ class Settings(BaseSettings):
     # OTP & SMS Gateway (2Factor.in)
     OTP_PROVIDER: str = "2factor"
     OTP_EXPIRY_SECONDS: int = 300
+    DEV_MOCK_OTP: str = "123456"
 
     # 2Factor.in Configuration (voice call OTP)
     TWOFACTOR_API_KEY: str = ""
     TWOFACTOR_TEMPLATE_NAME: str = "VENDOKART_OTP"
+
+    # LLM / AI Configuration (Local / Ollama)
+    LLM_BASE_URL: str = "http://localhost:11434"
+    LLM_MODEL: str = "qwen2.5:7b"
+
+    # External APIs (Optional)
+    GOOGLE_MAPS_API_KEY: str = ""
+    WHATSAPP_API_URL: str = ""
+    WHATSAPP_ACCESS_TOKEN: str = ""
+    SENTRY_DSN: str = ""
+
+    # Groq AI Configurations (§10, §11)
+    GROQ_API_KEY_20B: str = ""
+    GROQ_API_KEY_120B: str = ""
+    GROQ_API_KEY: str = ""
+
+    # Role-based Model Architecture
+    MODEL_PRICING_EXPLANATION: str = "openai/gpt-oss-20b"
+    MODEL_NEGOTIATION_AGENT: str = "openai/gpt-oss-120b"
+    MODEL_SUSPICIOUS_DATA_REASONING: str = "openai/gpt-oss-20b"
+    MODEL_VOICE_STT: str = "whisper-large-v3-turbo"
+    MODEL_MARKET_INFO: str = "groq/compound"
 
     # CORS
     CORS_ORIGINS: Union[List[str], str] = [

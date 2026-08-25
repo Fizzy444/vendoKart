@@ -1,6 +1,11 @@
 import { AuthResponse, HealthResponse, OTPResponse, TokenPair, User } from "@/types/auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const getApiBase = () => {
+  if (typeof window !== "undefined" && window.location && window.location.hostname) {
+    return `http://${window.location.hostname}:8000/api/v1`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+};
 
 class ApiService {
   private getTokens(): TokenPair | null {
@@ -28,7 +33,8 @@ class ApiService {
     options: RequestInit = {},
     requiresAuth: boolean = false
   ): Promise<T> {
-    const url = `${API_BASE}${endpoint}`;
+    const apiBase = getApiBase();
+    const url = `${apiBase}${endpoint}`;
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
@@ -48,7 +54,7 @@ class ApiService {
       const tokens = this.getTokens();
       if (tokens?.refresh_token) {
         try {
-          const refreshRes = await fetch(`${API_BASE}/auth/refresh`, {
+          const refreshRes = await fetch(`${apiBase}/auth/refresh`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refresh_token: tokens.refresh_token }),

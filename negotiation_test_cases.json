@@ -1,0 +1,226 @@
+{
+  "project": "VendoKart",
+  "module": "Pricing & Seller Negotiation Intelligence Agent",
+  "version": "1.0.0",
+  "authoritative_principles": [
+    "NEVER fabricate numbers (material, labour, market prices, margins).",
+    "Deterministic Python Pricing Engine is the source of financial truth.",
+    "Non-negotiable seller price floor is a strict business constraint.",
+    "Tactical reasoning powered by openai/gpt-oss-120b & 20b with Python rule guardrails."
+  ],
+  "products": [
+    {
+      "id": "prod_bamboo_basket_01",
+      "name": "Handmade Bamboo Storage Basket",
+      "category": "Handcrafted Home Decor",
+      "craft_category": "Bamboo Craft",
+      "artisan": {
+        "name": "Meena",
+        "shop": "Meena Handcrafts",
+        "location": "Kumbakonam, Tamil Nadu",
+        "verified": true
+      },
+      "production_parameters": {
+        "material_cost_batch_inr": 1850.0,
+        "material_breakdown": {
+          "Bamboo": 1200.0,
+          "Natural rope": 300.0,
+          "Wood finishing material": 200.0,
+          "Packaging material": 150.0
+        },
+        "labour_cost_per_worker_per_day_inr": 400.0,
+        "workers_count": 5,
+        "production_days": 3.0,
+        "daily_capacity_units": 10.0,
+        "batch_total_units": 30.0,
+        "workshop_rent_daily_inr": 500.0,
+        "energy_cost_daily_inr": 200.0,
+        "transport_batch_cost_inr": 300.0,
+        "packaging_cost_inr": 0.0,
+        "target_margin_percent": 25.0,
+        "seller_minimum_acceptable_price_inr": 500.0
+      },
+      "deterministic_cost_breakdown": {
+        "unit_labour_cost_inr": 200.0,
+        "unit_material_cost_inr": 61.67,
+        "unit_overhead_cost_inr": 80.0,
+        "total_unit_production_cost_inr": 341.67,
+        "total_batch_cost_inr": 10250.1,
+        "non_negotiable_floor_price_inr": 500.0,
+        "recommended_selling_range_inr": [500.0, 525.0],
+        "listed_price_inr": 550.0
+      },
+      "market_benchmark": {
+        "market_reference_low_inr": 450.0,
+        "market_reference_median_inr": 520.0,
+        "market_reference_high_inr": 550.0,
+        "demand_level": "HIGH"
+      }
+    },
+    {
+      "id": "prod_silk_saree_02",
+      "name": "Pure Mulberry Silk Handloom Saree",
+      "category": "Handloom & Textiles",
+      "craft_category": "Handloom & Textiles",
+      "artisan": {
+        "name": "Kanchipuram Silk Weavers Guild",
+        "location": "Kanchipuram, Tamil Nadu",
+        "verified": true
+      },
+      "production_parameters": {
+        "material_cost_batch_inr": 2800.0,
+        "labour_cost_per_worker_per_day_inr": 750.0,
+        "workers_count": 1,
+        "production_days": 2.0,
+        "daily_capacity_units": 0.5,
+        "batch_total_units": 1.0,
+        "workshop_rent_daily_inr": 0.0,
+        "energy_cost_daily_inr": 0.0,
+        "target_margin_percent": 25.0,
+        "seller_minimum_acceptable_price_inr": 5000.0
+      },
+      "deterministic_cost_breakdown": {
+        "unit_labour_cost_inr": 1500.0,
+        "unit_material_cost_inr": 2800.0,
+        "total_unit_production_cost_inr": 4300.0,
+        "non_negotiable_floor_price_inr": 5000.0,
+        "recommended_selling_range_inr": [5375.0, 5600.0],
+        "listed_price_inr": 5800.0
+      }
+    }
+  ],
+  "conversations": [
+    {
+      "id": "conv_01_seller_pricing_explanation",
+      "title": "Conversation 1 — Seller Questions the Recommended Price",
+      "product_id": "prod_bamboo_basket_01",
+      "turns": [
+        {
+          "turn": 1,
+          "speaker": "seller",
+          "message": "Why are you suggesting ₹500 per basket? I think ₹400 is enough.",
+          "agent_reasoning": "Explain that the recommendation is rooted strictly in production data and total unit cost.",
+          "expected_response": "The ₹500 recommendation is based on your production data. Your estimated cost is approximately ₹342 per basket."
+        },
+        {
+          "turn": 2,
+          "speaker": "seller",
+          "message": "Why is the cost ₹342?",
+          "agent_reasoning": "Break down itemized production costs: material ₹61.67, 5 workers @ ₹400/day for 3 days (₹200/unit), rent ₹50, energy ₹20, transport ₹10.",
+          "expected_response": "It includes Material cost, ₹400/day labour for 5 workers, 3 production days, Workshop rental, Electricity, and Transportation across your 30 baskets batch."
+        },
+        {
+          "turn": 3,
+          "speaker": "seller",
+          "message": "What happens if I sell it for ₹400?",
+          "agent_reasoning": "Explain that ₹400 leaves only ₹58 profit per unit, which violates the 25% target margin and leaves no buffer for cost variance.",
+          "expected_response": "₹400 would still generate approximately ₹58 per basket above the production cost, but it is below your configured target margin and may not adequately cover cost variations."
+        },
+        {
+          "turn": 4,
+          "speaker": "seller",
+          "message": "Then why exactly ₹500?",
+          "agent_reasoning": "Clarify that ₹500 is the seller's minimum acceptable price floor provided during onboarding.",
+          "expected_response": "₹500 is being used as the minimum acceptable selling price you provided. I recommend keeping the selling range around ₹500–₹520, subject to current market references."
+        }
+      ]
+    },
+    {
+      "id": "conv_02_seller_price_increase",
+      "title": "Conversation 2 — Seller Wants to Increase the Price",
+      "product_id": "prod_bamboo_basket_01",
+      "turns": [
+        {
+          "turn": 1,
+          "speaker": "seller",
+          "message": "I want to sell this basket for ₹700.",
+          "agent_reasoning": "Compare against market reference range (₹450-₹550) and explain why ₹700 is above market.",
+          "expected_response": "You can choose ₹700, but the current market reference and production data do not strongly support that price."
+        },
+        {
+          "turn": 2,
+          "speaker": "seller",
+          "message": "Why?",
+          "agent_reasoning": "Explain that unit cost is ₹342 and comparable products range from ₹450-₹550.",
+          "expected_response": "Your estimated production cost is ₹342 per basket, while the available comparable-product range is approximately ₹450–₹550. ₹700 is therefore significantly above the observed market range."
+        },
+        {
+          "turn": 3,
+          "speaker": "seller",
+          "message": "But mine is completely handmade.",
+          "agent_reasoning": "Acknowledge craftsmanship premium and suggest a balanced range (₹550-₹600) instead of jump to ₹700.",
+          "expected_response": "That can justify a premium. If your product has verified differentiating factors such as premium bamboo, additional craftsmanship, customization, or larger dimensions, we can factor those into the pricing analysis."
+        },
+        {
+          "turn": 4,
+          "speaker": "seller",
+          "message": "It takes 3 days and 5 workers to make it.",
+          "agent_reasoning": "Clarify that time and worker wages are already in the base ₹342 cost. Reiterate ₹550-₹600 range.",
+          "expected_response": "That information is already included in the production-cost calculation. I would recommend ₹550–₹600 if the product differentiation is supported, rather than automatically setting ₹700."
+        },
+        {
+          "turn": 5,
+          "speaker": "seller",
+          "message": "Okay, use ₹580.",
+          "agent_reasoning": "Validate ₹580 >= ₹500 floor. Record as seller-selected price.",
+          "expected_response": "₹580 is above your minimum price of ₹500. I can record ₹580 as your seller-selected price."
+        }
+      ]
+    },
+    {
+      "id": "conv_03_buyer_negotiation",
+      "title": "Conversation 3 — Buyer Negotiation Through the Agent",
+      "product_id": "prod_bamboo_basket_01",
+      "turns": [
+        {
+          "turn": 1,
+          "speaker": "buyer",
+          "message": "I want 100 baskets. Can I get them for ₹450 each?",
+          "offer_price_inr": 450.0,
+          "quantity": 100,
+          "python_rule_check": "REJECTED",
+          "reason": "Offer ₹450 < Seller Floor ₹500",
+          "expected_response": "The seller's current minimum acceptable price is ₹500 per basket, so I cannot confirm ₹450."
+        },
+        {
+          "turn": 2,
+          "speaker": "buyer",
+          "message": "Why is it ₹500? I'm ordering 100 pieces.",
+          "offer_price_inr": null,
+          "quantity": 100,
+          "python_rule_check": "ALLOWED",
+          "expected_response": "The seller's estimated production cost is approximately ₹342 per basket. The ₹500 minimum also accounts for the seller's configured margin and production-related costs."
+        },
+        {
+          "turn": 3,
+          "speaker": "buyer",
+          "message": "Since I'm buying 100, ask the seller for a discount.",
+          "offer_price_inr": null,
+          "quantity": 100,
+          "python_rule_check": "ALLOWED",
+          "expected_response": "I can request a bulk-order consideration. The seller's price floor is ₹500, so any accepted offer must remain at or above ₹500 unless the seller explicitly changes that floor."
+        },
+        {
+          "turn": 4,
+          "speaker": "buyer",
+          "message": "What about ₹500?",
+          "offer_price_inr": 500.0,
+          "quantity": 100,
+          "python_rule_check": "ALLOWED",
+          "reason": "Offer ₹500 meets Floor ₹500",
+          "expected_response": "₹500 meets the seller's current minimum price. I can submit 100 × ₹500 = ₹50,000 as the proposed order value."
+        },
+        {
+          "turn": 5,
+          "speaker": "seller",
+          "message": "Accept it.",
+          "offer_price_inr": 500.0,
+          "quantity": 100,
+          "order_status": "ACCEPTED",
+          "total_deal_amount_inr": 50000.0,
+          "expected_response": "The seller has accepted the offer. Order Status: NEGOTIATION -> ACCEPTED."
+        }
+      ]
+    }
+  ]
+}

@@ -5,23 +5,33 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/services/api";
 import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
 import {
-  Sparkles,
   Hammer,
-  ShoppingBag,
+  ShieldCheck,
+  Bell,
+  Sparkles,
   User as UserIcon,
   LogOut,
-  Activity,
+  ChevronDown,
   Menu,
-  X,
-  LayoutDashboard,
 } from "lucide-react";
 
-export const Navbar: React.FC = () => {
-  const { user, openAuthModal, logout } = useAuth();
-  const [healthStatus, setHealthStatus] = useState<string>("checking");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+interface NavbarProps {
+  onToggleSidebar?: () => void;
+  unreadNotificationsCount?: number;
+  onOpenNotifications?: () => void;
+  onOpenSettings?: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  onToggleSidebar,
+  unreadNotificationsCount = 0,
+  onOpenNotifications,
+  onOpenSettings,
+}) => {
+  const { user, openAuthModal, devLogin, logout } = useAuth();
+  const [healthStatus, setHealthStatus] = useState<string>("healthy");
+  const [userDropdownOpen, setUserDropdownOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const checkHealth = async () => {
@@ -38,26 +48,37 @@ export const Navbar: React.FC = () => {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 w-full border-b border-emerald-800 bg-[#064e3b] text-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand Logo */}
-        <div className="flex items-center gap-6">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-artisan-500 to-ochre-600 flex items-center justify-center text-white font-black text-lg shadow-md shadow-artisan-500/20 group-hover:scale-105 transition-transform">
-              V
+        {/* Left Side: Sidebar Toggle & Brand Logo */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 border border-emerald-700 text-white transition-all cursor-pointer"
+            title="Toggle Navigation Menu"
+          >
+            <Menu className="w-5 h-5 text-emerald-100" />
+          </button>
+
+          <Link href="/" className="flex items-center gap-2.5 group cursor-pointer">
+            <div className="w-9 h-9 rounded-xl bg-white text-[#064e3b] flex items-center justify-center font-black text-lg shadow-md group-hover:scale-105 transition-transform">
+              <Hammer className="w-4 h-4 text-[#064e3b]" />
             </div>
             <div>
-              <span className="text-lg font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              <div className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5 leading-none">
                 vendoKart
-                <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-artisan-500/20 text-artisan-400 border border-artisan-500/30">
+                <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#FEF08A] text-[#064e3b] shadow-sm">
                   AI Artisan
                 </span>
+              </div>
+              <span className="text-[10px] text-emerald-200 font-medium tracking-wide hidden sm:block">
+                Handmade Artisan Digital Commerce
               </span>
             </div>
           </Link>
 
           {/* System Health Indicator */}
-          <div className="hidden lg:flex items-center gap-2 text-xs px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-slate-400">
+          <div className="hidden md:flex items-center gap-2 text-xs px-3 py-1 rounded-full bg-emerald-900/90 border border-emerald-700 text-emerald-100">
             <span
               className={`w-2 h-2 rounded-full ${
                 healthStatus === "healthy"
@@ -67,170 +88,100 @@ export const Navbar: React.FC = () => {
                   : "bg-amber-400"
               }`}
             />
-            <span className="capitalize text-[11px] font-mono">
+            <span className="capitalize text-[11px] font-medium">
               API {healthStatus}
             </span>
           </div>
         </div>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-sm text-slate-300">
-          <Link href="/" className="hover:text-white transition-colors">
-            Home
-          </Link>
-          <Link
-            href="/dashboard"
-            className="hover:text-white transition-colors flex items-center gap-1"
+        {/* Right Side: Notification Icon & User Profile */}
+        <div className="flex items-center gap-3">
+          {/* Notification Bell Shortcut */}
+          <button
+            onClick={onOpenNotifications}
+            className="relative p-2 rounded-xl bg-emerald-800 hover:bg-emerald-700 border border-emerald-700 text-emerald-100 transition-all cursor-pointer"
+            title="View Notifications"
           >
-            <LayoutDashboard className="w-4 h-4 text-slate-400" />
-            Dashboard
-          </Link>
-          <a
-            href="http://localhost:8000/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-white transition-colors text-xs text-slate-400 hover:underline flex items-center gap-1"
-          >
-            API Docs ↗
-          </a>
-        </nav>
+            <Bell className="w-4 h-4" />
+            {unreadNotificationsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#FEF08A] text-[#064e3b] text-[10px] font-black flex items-center justify-center shadow-sm">
+                {unreadNotificationsCount}
+              </span>
+            )}
+          </button>
 
-        {/* User Auth Controls */}
-        <div className="hidden md:flex items-center gap-3">
+          {/* User Profile Dropdown in Corner */}
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl transition-all"
+            <div className="relative">
+              <button
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 border border-emerald-600 text-left transition-all cursor-pointer shadow-sm"
               >
-                <div className="w-7 h-7 rounded-lg bg-artisan-500/20 text-artisan-400 flex items-center justify-center font-bold text-xs">
-                  {user.name ? user.name[0].toUpperCase() : <UserIcon className="w-4 h-4" />}
+                <div className="w-8 h-8 rounded-lg bg-[#FEF08A] text-[#064e3b] font-black flex items-center justify-center text-sm shadow-inner">
+                  {user.name ? user.name.charAt(0).toUpperCase() : "A"}
                 </div>
-                <div className="text-left text-xs">
-                  <p className="font-semibold text-slate-200 truncate max-w-[120px]">
-                    {user.name || user.phone}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    {user.roles.map((role) => (
-                      <span
-                        key={role}
-                        className="text-[10px] uppercase font-mono tracking-wider text-artisan-400"
-                      >
-                        {role}
-                      </span>
-                    ))}
+                <div className="hidden sm:block">
+                  <div className="text-xs font-bold text-white flex items-center gap-1 leading-tight">
+                    {user.business_name || user.name || "Artisan Shop"}
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#FEF08A] inline" />
                   </div>
+                  <span className="text-[10px] text-emerald-200 block leading-tight font-mono">
+                    {user.phone || "+91..."}
+                  </span>
                 </div>
-              </Link>
+                <ChevronDown className="w-3.5 h-3.5 text-emerald-200" />
+              </button>
 
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                title="Sign Out"
-                className="text-slate-400 hover:text-red-400"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+              {userDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-[#EBE6DC] shadow-xl p-2 z-50 text-[#1E2316]">
+                  <div className="px-3 py-2.5 border-b border-[#EBE6DC] mb-1 bg-[#FEFCE8] rounded-xl">
+                    <p className="text-xs font-bold text-[#064e3b]">
+                      {user.name || "Artisan"}
+                    </p>
+                    <p className="text-[11px] text-[#6B7260]">
+                      {user.business_name || "Verified Artisan Guild"}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (onOpenSettings) onOpenSettings();
+                      setUserDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-xs hover:bg-[#FAF7F0] text-[#1E2316] flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <UserIcon className="w-3.5 h-3.5 text-[#6B7260]" />
+                    Business Profile
+                  </button>
+
+                  <div className="my-1 border-t border-[#EBE6DC]" />
+
+                  <button
+                    onClick={() => {
+                      logout();
+                      setUserDropdownOpen(false);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => openAuthModal("seller")}
-                className="text-xs"
+                className="bg-[#FEF08A] hover:bg-yellow-300 text-[#064e3b] font-black text-xs shadow-md border border-yellow-300 cursor-pointer"
               >
-                <Hammer className="w-3.5 h-3.5 mr-1 text-artisan-400" />
-                Artisan Portal
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => openAuthModal("buyer")}
-                className="text-xs"
-              >
-                <ShoppingBag className="w-3.5 h-3.5 mr-1" />
-                Sign In
+                Login / Register
               </Button>
             </div>
           )}
         </div>
-
-        {/* Mobile menu button */}
-        <div className="md:hidden flex items-center">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg bg-slate-900 text-slate-300 hover:text-white"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
       </div>
-
-      {/* Mobile Menu Dropdown */}
-      {mobileMenuOpen && (
-        <div className="md:hidden p-4 border-t border-slate-800 bg-slate-950 space-y-3">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm text-slate-300 hover:text-white py-1"
-          >
-            Home
-          </Link>
-          <Link
-            href="/dashboard"
-            onClick={() => setMobileMenuOpen(false)}
-            className="block text-sm text-slate-300 hover:text-white py-1"
-          >
-            Dashboard
-          </Link>
-          <a
-            href="http://localhost:8000/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-sm text-slate-400 py-1"
-          >
-            API Swagger Docs ↗
-          </a>
-          <div className="pt-2 border-t border-slate-800">
-            {user ? (
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-200">{user.name || user.phone}</p>
-                  <p className="text-xs text-artisan-400 capitalize">{user.roles.join(", ")}</p>
-                </div>
-                <Button size="sm" variant="ghost" onClick={logout}>
-                  Sign Out
-                </Button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    openAuthModal("seller");
-                  }}
-                >
-                  Artisan Login
-                </Button>
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    openAuthModal("buyer");
-                  }}
-                >
-                  Buyer Login
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </header>
   );
 };

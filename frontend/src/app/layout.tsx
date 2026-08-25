@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { AuthProvider } from "@/context/AuthContext";
-import { Navbar } from "@/components/layout/Navbar";
-import { Footer } from "@/components/layout/Footer";
 import { AuthModal } from "@/components/auth/AuthModal";
 import "./globals.css";
 
@@ -17,15 +15,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className="bg-slate-950 text-slate-100 flex flex-col min-h-screen selection:bg-artisan-500 selection:text-white antialiased"
+        className="bg-[#FAF7F0] text-[#1E2316] flex flex-col min-h-screen selection:bg-emerald-600 selection:text-white antialiased"
       >
         <AuthProvider>
-          <Navbar />
           <main className="flex-1 flex flex-col">{children}</main>
-          <Footer />
           <AuthModal />
         </AuthProvider>
       </body>
