@@ -60,19 +60,9 @@ vendoKart application stage for Module 4 (Buyer Search & Requirement AI) impleme
 2026-08-25 – Resolved ChromaDB type issues across `chroma_repository.py`, `scratch_test_chroma_migration.py`, and `main.py`: updated `ClientAPI` and `Collection` imports from `chromadb.api`, added type-safe helpers for primitive metadata parsing without `# type: ignore`, handled `price_per_unit: float | None`, added `None` assertions for toggle favorite test, and removed redundant `str()` calls in CORS configuration. Verified 0 Pyright errors/warnings and 9/9 pytest pass rate.
 2026-08-25 – Enforced default product retrieval logic in `ai/matching/buyer_search.py`: when search query is empty and no explicit filters are active, directly returns all 10 candidate products from persistent ChromaDB collection. Verified 100% data preservation and 9/9 pytest pass rate.
 2026-08-25 – Added `BaseException` handling in `ChromaRepository.get_client()` to catch ChromaDB Rust bindings `PanicException` (`range start index 10 out of range for slice of length 9`) on Python 3.13, automatically purging corrupted index state and re-creating clean persistent storage with all 10 artisan products on backend startup. Verified 9/9 pytest pass rate.
-
-
-
-
-
-
-
-
-
-
-
-
-
+2026-08-25 – Resolved Git merge conflict markers across `backend/app/api/v1/router.py`, `backend/app/repositories/__init__.py`, `frontend/src/app/dashboard/page.tsx`, and `pyrightconfig.json`.
+2026-08-25 – Removed untracked Python virtual environment files (`backend/venv`, 17,751 files) from git index (`git rm -r --cached backend/venv`) to resolve Git push HTTP 408 timeout failures.
+2026-08-25 – Configured `.gitignore` and `backend/.gitignore` to exclude `venv/`, `backend/venv/`, `.venv/`, and `chromadb_data/` from git tracking.
 
 ## Known Issues / Blockers
 
@@ -80,4 +70,4 @@ vendoKart application stage for Module 4 (Buyer Search & Requirement AI) impleme
 
 ## Next Immediate Actions
 
-- Proceed to Module 1 (Seller Core & Deterministic Pricing Engine) when requested.
+- Finalize Git commit and push changes to remote origin.
