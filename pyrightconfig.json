@@ -1,16 +1,21 @@
 {
   "venvPath": "backend",
-  "venv": ".venv",
+  "venv": "venv",
   "include": [
-    "backend"
+    "backend",
+    "ai"
   ],
   "exclude": [
     "**/__pyrefly_virtual__/**",
     "**/__pycache__",
+    "backend/venv",
     "backend/.venv"
   ],
   "extraPaths": [
     "backend",
-    "backend/.venv/Lib/site-packages"
+    "backend/venv/Lib/site-packages",
+    "backend/.venv/Lib/site-packages",
+    "."
   ]
 }
+

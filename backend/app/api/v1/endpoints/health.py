@@ -1,7 +1,12 @@
+import asyncio
 import time
 from fastapi import APIRouter
 from app.core.config import settings
+<<<<<<< HEAD
+from app.core.database import db_state, get_redis_client
+=======
 from app.core.database import db_state, get_redis_client, ping_database
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 from app.schemas.response import HealthResponse
 
 router = APIRouter()
@@ -11,27 +16,39 @@ router = APIRouter()
 async def health_check():
     """
     System health check endpoint verifying database, cache, and service status.
+    Uses strict 1s timeout to prevent socket leaks or blocking when services are offline.
     """
     db_status = "unhealthy"
     db_latency_ms = None
+<<<<<<< HEAD
+    if db_state.client is not None:
+        try:
+            start = time.perf_counter()
+            await asyncio.wait_for(db_state.client.admin.command("ping"), timeout=1.0)
+            db_latency_ms = round((time.perf_counter() - start) * 1000, 2)
+=======
     try:
         if db_state.is_db_online:
             db_latency_ms = await ping_database()
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
             db_status = "healthy"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
+        except Exception:
+            db_status = "offline"
+    else:
+        db_status = "disconnected"
 
     redis_status = "unhealthy"
     redis_latency_ms = None
-    try:
-        redis_client = get_redis_client()
-        if redis_client is not None:
+    if db_state.redis is not None:
+        try:
             start = time.perf_counter()
-            await redis_client.ping()
+            await asyncio.wait_for(db_state.redis.ping(), timeout=1.0)
             redis_latency_ms = round((time.perf_counter() - start) * 1000, 2)
             redis_status = "healthy"
-    except Exception as e:
-        redis_status = f"error: {str(e)}"
+        except Exception:
+            redis_status = "offline"
+    else:
+        redis_status = "disconnected"
 
     # MinIO / Storage status
     storage_status = "configured"

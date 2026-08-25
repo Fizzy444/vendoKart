@@ -34,6 +34,16 @@ async def connect_to_postgres():
     logger.info(f"Connecting to PostgreSQL database at {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}...")
     
     try:
+<<<<<<< HEAD
+        db_state.client = AsyncIOMotorClient(
+            settings.MONGODB_URI,
+            serverSelectionTimeoutMS=1000,
+        )
+        db_state.db = db_state.client[settings.MONGODB_DATABASE]
+        # Quick ping with 1s timeout
+        await asyncio.wait_for(db_state.client.admin.command("ping"), timeout=1.0)
+        logger.info(f"Connected to MongoDB database: {settings.MONGODB_DATABASE}")
+=======
         engine = create_async_engine(
             db_url,
             echo=False,
@@ -58,11 +68,15 @@ async def connect_to_postgres():
         db_state.is_postgres_online = True
         db_state.database_url = db_url
         logger.info(f"Connected to PostgreSQL database: {settings.POSTGRES_DB}")
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 
         # Ensure all tables exist
         await create_tables()
         logger.info("PostgreSQL database tables and schemas verified successfully.")
     except Exception as e:
+<<<<<<< HEAD
+        logger.info("MongoDB offline in local dev mode. Continuing with fallback in-memory state.")
+=======
         logger.warning(f"PostgreSQL not reachable at {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT} ({e}).")
         logger.info("Activating resilient SQLite async store for offline local operation / testing...")
         
@@ -81,6 +95,7 @@ async def connect_to_postgres():
         db_state.database_url = sqlite_url
         await create_tables()
         logger.info("Resilient local SQLite database initialized with all tables.")
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 
 
 async def create_tables():
@@ -135,9 +150,20 @@ async def connect_to_redis():
     """Initializes Redis connection."""
     logger.info(f"Connecting to Redis at {settings.REDIS_URL}...")
     try:
-        db_state.redis = aioredis.from_url(
+        r_client = aioredis.from_url(
             settings.REDIS_URL,
             decode_responses=True,
+<<<<<<< HEAD
+            socket_timeout=1.0,
+            retry_on_timeout=False,
+        )
+        await asyncio.wait_for(r_client.ping(), timeout=1.0)
+        db_state.redis = r_client
+        logger.info("Connected to Redis successfully.")
+    except Exception:
+        db_state.redis = None
+        logger.info("Redis offline in local dev mode. Continuing with in-memory session cache.")
+=======
             socket_timeout=1,
         )
         await db_state.redis.ping()
@@ -146,6 +172,7 @@ async def connect_to_redis():
     except Exception as e:
         db_state.is_redis_online = False
         logger.warning(f"Redis not reachable ({e}). Using in-memory session cache.")
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 
 
 async def close_redis_connection():

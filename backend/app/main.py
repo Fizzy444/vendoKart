@@ -1,10 +1,20 @@
+import sys
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
+
+# Ensure project root (containing `ai` and `backend`) is on sys.path
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.repositories.product_repository import ProductRepository
+from app.repositories.chroma_repository import ChromaRepository
 from app.core.database import (
     close_db_connection,
     close_redis_connection,
@@ -25,6 +35,7 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing application lifespan...")
     await connect_to_postgres()
     await connect_to_redis()
+    await ChromaRepository.initialize_and_migrate(ProductRepository._PRODUCTS_SEED)
     yield
     logger.info("Shutting down application lifespan...")
     await close_db_connection()
@@ -41,6 +52,17 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
+<<<<<<< HEAD
+# CORS configuration
+if settings.CORS_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+=======
 # CORS configuration: Allow localhost, 127.0.0.1, and local LAN network IPs
 app.add_middleware(
     CORSMiddleware,
@@ -50,6 +72,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+>>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 
 # Mount API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)

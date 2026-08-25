@@ -38,6 +38,7 @@ class RefreshTokenRequest(BaseModel):
 
 class UserProfileUpdate(BaseModel):
     name: Optional[str] = None
+    email: Optional[str] = None
     business_name: Optional[str] = None
     location: Optional[Location] = None
     roles: Optional[List[UserRole]] = None
@@ -47,6 +48,7 @@ class UserResponse(BaseModel):
     id: str
     phone: str
     name: Optional[str] = None
+    email: Optional[str] = None
     business_name: Optional[str] = None
     roles: List[UserRole]
     status: UserStatus

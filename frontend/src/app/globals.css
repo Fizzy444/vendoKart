@@ -2,29 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --background: 15 23 42;
-  --foreground: 248 250 252;
+@layer base {
+  :root {
+    --bg-cream: #F8F5EE;
+    --card-white: #FFFFFF;
+    --olive-dark: #44521E;
+    --olive-hover: #364217;
+    --rust-btn: #B84018;
+    --rust-hover: #A03410;
+    --beige-btn: #EFEBE0;
+    --beige-hover: #E4DDCF;
+    --text-dark: #1E2316;
+    --text-muted: #6B7260;
+    --border-subtle: #EBE6DC;
+  }
+
+  body {
+    color: var(--text-dark);
+    background-color: var(--bg-cream);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    min-height: 100vh;
+    font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
 }
 
-body {
-  color: rgb(var(--foreground));
-  background: #0b0f19;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-  min-height: 100vh;
+/* Custom Artisan Colors & Card Styling */
+.bg-artisan-cream {
+  background-color: #F8F5EE;
 }
 
-/* Custom subtle scrollbar */
+.bg-olive-dark {
+  background-color: #44521E;
+}
+
+.bg-olive-dark:hover {
+  background-color: #364217;
+}
+
+.text-olive-dark {
+  color: #44521E;
+}
+
+.bg-rust-accent {
+  background-color: #B84018;
+}
+
+.bg-rust-accent:hover {
+  background-color: #A03410;
+}
+
+.text-rust-accent {
+  color: #B84018;
+}
+
+.bg-beige-light {
+  background-color: #EFEBE0;
+}
+
+.bg-beige-light:hover {
+  background-color: #E4DDCF;
+}
+
+.border-artisan-subtle {
+  border-color: #EBE6DC;
+}
+
+.shadow-artisan-card {
+  box-shadow: 0 4px 20px -2px rgba(68, 82, 30, 0.04), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: #F0EDE4;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #C9C4B6;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #A8A293;
 }
