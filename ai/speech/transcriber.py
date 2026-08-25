@@ -92,20 +92,7 @@ class Transcriber:
 
             full_text = " ".join([segment.text.strip() for segment in segments if segment.text.strip()])
 
-            # Run 2: If it's not English, let Whisper natively translate it!
-            # Whisper is incredibly smart and handles "Hinglish" or phonetic English terms perfectly.
-            translated_text = ""
-            if info.language != "en":
-                t_segments, _ = self.model.transcribe(
-                    audio_array,
-                    beam_size=5,
-                    task="translate",
-                    vad_filter=True,
-                    condition_on_previous_text=False
-                )
-                translated_text = " ".join([segment.text.strip() for segment in t_segments if segment.text.strip()])
-
-            return info.language, full_text, translated_text
+            return info.language, full_text, ""
 
         except Exception as e:
             return "error", f"Transcription failed: {str(e)}", ""
