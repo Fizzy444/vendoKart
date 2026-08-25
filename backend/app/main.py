@@ -52,17 +52,6 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-<<<<<<< HEAD
-# CORS configuration
-if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.CORS_ORIGINS,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-=======
 # CORS configuration: Allow localhost, 127.0.0.1, and local LAN network IPs
 app.add_middleware(
     CORSMiddleware,
@@ -72,7 +61,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
->>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9
 
 # Mount API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)

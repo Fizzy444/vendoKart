@@ -1,7 +1,27 @@
-<<<<<<< HEAD
-from typing import List, Optional
+import logging
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional
+from sqlalchemy import delete, select
+from app.core.database import db_state
+from app.models.product import ProductInDB, ProductModel, ProductStatus
 from app.schemas.search import ProductItem
 from app.repositories.chroma_repository import ChromaRepository
+
+logger = logging.getLogger("artisan.repository.product")
+
+
+def _sanitize_json(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: _sanitize_json(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple, set)):
+        return [_sanitize_json(i) for i in obj]
+    elif isinstance(obj, datetime):
+        return obj.isoformat()
+    elif hasattr(obj, "value"):
+        return obj.value
+    elif hasattr(obj, "model_dump"):
+        return _sanitize_json(obj.model_dump())
+    return obj
 
 
 class ProductRepository:
@@ -265,32 +285,6 @@ class ProductRepository:
                 return p
         return None
 
-=======
-import logging
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
-from sqlalchemy import delete, select
-from app.core.database import db_state
-from app.models.product import ProductInDB, ProductModel, ProductStatus
-
-logger = logging.getLogger("artisan.repository.product")
-
-
-def _sanitize_json(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {k: _sanitize_json(v) for k, v in obj.items()}
-    elif isinstance(obj, (list, tuple, set)):
-        return [_sanitize_json(i) for i in obj]
-    elif isinstance(obj, datetime):
-        return obj.isoformat()
-    elif hasattr(obj, "value"):
-        return obj.value
-    elif hasattr(obj, "model_dump"):
-        return _sanitize_json(obj.model_dump())
-    return obj
-
-
-class ProductRepository:
     def __init__(self, db: Optional[Any] = None):
         self._db = db
 
@@ -455,4 +449,3 @@ class ProductRepository:
         except Exception as e:
             logger.error(f"Database error in product delete: {e}", exc_info=True)
             return False
->>>>>>> 26359b1df17ecfad1d96b0aa72b4eea6309703e9

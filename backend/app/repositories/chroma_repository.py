@@ -1,10 +1,19 @@
 import os
 import logging
 from typing import List, Optional, Tuple, Dict, Mapping, Any
-import chromadb
-from chromadb import Collection
-from chromadb.api import ClientAPI
-from chromadb.config import Settings as ChromaSettings
+
+try:
+    import chromadb
+    from chromadb import Collection
+    from chromadb.api import ClientAPI
+    from chromadb.config import Settings as ChromaSettings
+    HAS_CHROMADB = True
+except ImportError:
+    chromadb = None
+    Collection = Any  # type: ignore
+    ClientAPI = Any  # type: ignore
+    ChromaSettings = Any  # type: ignore
+    HAS_CHROMADB = False
 
 from app.schemas.search import ProductItem
 from ai.matching.bge_embedder import BGEEmbeddingEngine
@@ -19,13 +28,15 @@ class ChromaRepository:
     Provides idempotent migration, vector similarity retrieval, and CRUD access.
     """
 
-    _client: Optional[ClientAPI] = None
-    _collection: Optional[Collection] = None
+    _client: Optional[Any] = None
+    _collection: Optional[Any] = None
     _DATA_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "chromadb_data"))
     _COLLECTION_NAME = "artisan_products"
 
     @classmethod
-    def get_client(cls) -> ClientAPI:
+    def get_client(cls) -> Optional[Any]:
+        if not HAS_CHROMADB:
+            return None
         if cls._client is None:
             os.makedirs(cls._DATA_PATH, exist_ok=True)
             try:
@@ -49,9 +60,13 @@ class ChromaRepository:
         return cls._client
 
     @classmethod
-    def get_collection(cls) -> Collection:
+    def get_collection(cls) -> Optional[Any]:
+        if not HAS_CHROMADB:
+            return None
         if cls._collection is None:
             client = cls.get_client()
+            if client is None:
+                return None
             cls._collection = client.get_or_create_collection(
                 name=cls._COLLECTION_NAME,
                 metadata={"hnsw:space": "cosine"}
@@ -132,6 +147,10 @@ class ChromaRepository:
         Verifies record count preservation.
         """
         collection = cls.get_collection()
+        if collection is None:
+            logger.info("ChromaDB not available. Using in-memory product repository.")
+            return len(seed_products)
+
         logger.info(f"Initializing ChromaDB persistent storage at {cls._DATA_PATH}...")
 
         ids = []
@@ -164,6 +183,8 @@ class ChromaRepository:
     async def get_all_products(cls) -> List[ProductItem]:
         """Retrieves all product items from ChromaDB collection."""
         collection = cls.get_collection()
+        if collection is None:
+            return []
         res = collection.get(include=["metadatas"])
         metadatas = res.get("metadatas") or []
         if not metadatas:
@@ -178,6 +199,8 @@ class ChromaRepository:
     async def get_product_by_id(cls, product_id: str) -> Optional[ProductItem]:
         """Finds product by unique ID from ChromaDB."""
         collection = cls.get_collection()
+        if collection is None:
+            return None
         res = collection.get(ids=[product_id], include=["metadatas"])
         metadatas = res.get("metadatas") or []
         if len(metadatas) > 0:
@@ -188,6 +211,8 @@ class ChromaRepository:
     async def toggle_favorite(cls, product_id: str) -> Optional[ProductItem]:
         """Toggles is_favorite status of a product in ChromaDB."""
         collection = cls.get_collection()
+        if collection is None:
+            return None
         product = await cls.get_product_by_id(product_id)
         if not product:
             return None
@@ -202,6 +227,8 @@ class ChromaRepository:
     async def query_semantic_vector(cls, query_vector: List[float], n_results: int = 10) -> List[Tuple[ProductItem, float]]:
         """Queries ChromaDB vector collection using BGE-M3 query vector."""
         collection = cls.get_collection()
+        if collection is None:
+            return []
         total_count = collection.count()
         if total_count == 0:
             return []
