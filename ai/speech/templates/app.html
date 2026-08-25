@@ -338,14 +338,23 @@
             spinner.style.display = 'none';
             emptyState.style.display = 'flex';
             instructionText.innerText = "Recording... Speak freely!";
+            
+            const status = document.getElementById('mic-status');
+            const statusText = document.getElementById('status-text');
+            statusText.innerText = "Loading Model... (May take a few mins if downloading)";
 
             fetch('/start', { method: 'POST' })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) throw new Error("Backend error");
+                    return response.json();
+                })
                 .then(data => {
-                    const status = document.getElementById('mic-status');
-                    const statusText = document.getElementById('status-text');
                     status.classList.add('listening');
                     statusText.innerText = "Listening to Microphone";
+                })
+                .catch(err => {
+                    statusText.innerText = "Error loading model. Check terminal!";
+                    console.error(err);
                 });
         }
 
@@ -375,12 +384,22 @@
 
                         const card = document.createElement('div');
                         card.className = 'message-card';
+                        
+                        let translationHTML = "";
+                        if (data.translated_text) {
+                            translationHTML = `
+                            <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); color: #a5b4fc; font-size: 1.1rem; font-style: italic;">
+                                ${data.translated_text}
+                            </div>`;
+                        }
+
                         card.innerHTML = `
                             <div class="message-header">
                                 <span class="lang-badge">${fullLangName}</span>
                                 <span class="timestamp">${timeStr}</span>
                             </div>
                             <div class="message-text">${data.text}</div>
+                            ${translationHTML}
                         `;
                         resultsArea.appendChild(card);
                     } else {

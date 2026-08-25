@@ -1,0 +1,7 @@
+flask
+faster-whisper
+sounddevice
+numpy
+nvidia-cublas-cu12; sys_platform == 'win32'
+nvidia-cudnn-cu12; sys_platform == 'win32'
+googletrans==4.0.0-rc1

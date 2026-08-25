@@ -62,36 +62,50 @@ class Transcriber:
         self.stream.start()
 
     def stop_listening(self):
-        """Stops recording, processes all captured audio, and returns (language, text)."""
+        """Stops recording, processes all captured audio, and returns (language, text, translated_text)."""
         if not self.is_recording:
-            return None, ""
-            
+            return None, "", ""
+
         self.is_recording = False
         if self.stream:
             self.stream.stop()
             self.stream.close()
             self.stream = None
-            
+
         if not self.audio_data:
-            return None, ""
+            return None, "", ""
 
         # Convert the captured audio list into a numpy array
         audio_array = np.array(self.audio_data, dtype=np.float32)
-        
+
         try:
             # Transcribe the entire audio clip at once.
-            # CRITICAL: We MUST use vad_filter=True so it strips out the silence 
-            # at the beginning and end of the recording, otherwise Whisper hallucinates!
-            # We also pass an initial_prompt with mixed scripts to encourage Hinglish (code-switching).
-            segments, info = self.model.transcribe(
-                audio_array, 
-                beam_size=5, 
-                vad_filter=True,
-                initial_prompt="नमस्ते, this is an example of mixed language. Handmade cotton saree."
-            )
+            # CRITICAL: We MUST use vad_filter=True so it strips out the silence
             
+            # Run 1: Get the native transcription (original language script)
+            segments, info = self.model.transcribe(
+                audio_array,
+                beam_size=5,
+                vad_filter=True,
+                condition_on_previous_text=False
+            )
+
             full_text = " ".join([segment.text.strip() for segment in segments if segment.text.strip()])
-            return info.language, full_text
-                
+
+            # Run 2: If it's not English, let Whisper natively translate it!
+            # Whisper is incredibly smart and handles "Hinglish" or phonetic English terms perfectly.
+            translated_text = ""
+            if info.language != "en":
+                t_segments, _ = self.model.transcribe(
+                    audio_array,
+                    beam_size=5,
+                    task="translate",
+                    vad_filter=True,
+                    condition_on_previous_text=False
+                )
+                translated_text = " ".join([segment.text.strip() for segment in t_segments if segment.text.strip()])
+
+            return info.language, full_text, translated_text
+
         except Exception as e:
-            return "error", f"Transcription failed: {str(e)}"
+            return "error", f"Transcription failed: {str(e)}", ""
