@@ -94,6 +94,8 @@ class SellerService:
 
         if user.location:
             initial_data["location"] = user.location.model_dump()
+            initial_data["latitude"] = user.location.latitude
+            initial_data["longitude"] = user.location.longitude
 
         new_seller = await SellerRepository.create(initial_data)
         logger.info(f"Initialized seller profile for user_id={user.id}")
@@ -146,12 +148,22 @@ class SellerService:
             data_dict["is_onboarded"] = True
             data_dict["trust_score"] = max(existing.trust_score if existing else 70.0, 85.0)
 
-        # Also sync name/business_name back to user record
+        # Also sync name/business_name/location/coords back to user record
         user_sync = {}
         if "artisan_name" in data_dict and data_dict["artisan_name"]:
             user_sync["name"] = data_dict["artisan_name"]
         if "business_name" in data_dict and data_dict["business_name"]:
             user_sync["business_name"] = data_dict["business_name"]
+        if "location" in data_dict and data_dict["location"]:
+            loc_val = data_dict["location"]
+            if hasattr(loc_val, "model_dump"):
+                loc_val = loc_val.model_dump()
+            if isinstance(loc_val, dict):
+                data_dict["latitude"] = loc_val.get("latitude")
+                data_dict["longitude"] = loc_val.get("longitude")
+                user_sync["location"] = loc_val
+                user_sync["latitude"] = loc_val.get("latitude")
+                user_sync["longitude"] = loc_val.get("longitude")
         if user_sync:
             await UserRepository.update(user_id, user_sync)
 
@@ -174,14 +186,28 @@ class SellerService:
             await cls.get_or_create_profile(user)
 
         loc_dict = location_data.model_dump(exclude_unset=True)
-        loc_dict["captured_at"] = datetime.now(timezone.utc)
+        loc_dict["captured_at"] = datetime.now(timezone.utc).isoformat()
 
         update_dict = {
             "location": loc_dict,
+            "latitude": location_data.latitude,
+            "longitude": location_data.longitude,
+            "address": location_data.address,
+            "city": location_data.city,
+            "district": location_data.district,
+            "state": location_data.state,
+            "pincode": location_data.pincode,
         }
 
-        # Also update user's location
-        await UserRepository.update(user_id, {"location": loc_dict})
+        # Also update user's location & coordinates
+        await UserRepository.update(user_id, {
+            "location": loc_dict,
+            "latitude": location_data.latitude,
+            "longitude": location_data.longitude,
+            "city": location_data.city,
+            "state": location_data.state,
+            "pincode": location_data.pincode,
+        })
 
         updated_seller = await SellerRepository.update(user_id, update_dict)
         if not updated_seller:

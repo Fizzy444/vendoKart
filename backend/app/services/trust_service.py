@@ -4,10 +4,12 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 from fastapi import HTTPException, status
-from app.models.seller import SellerProfileInDB
+from app.models.seller import SellerLocation, SellerProfileInDB
 from app.models.user import UserInDB
 from app.models.verification import RiskTier, VerificationEvidenceInDB, VerificationStatus
 from app.repositories.seller_repository import SellerRepository
+from app.repositories.user_repository import UserRepository
+from app.repositories.verification_repository import VerificationRepository
 from app.schemas.verification import (
     ImageIntegrityCheckRequest,
     ImageIntegrityCheckResponse,
@@ -18,11 +20,11 @@ from app.schemas.verification import (
 
 # Global in-memory registry of perceptual hashes to detect duplicate uploads
 _known_image_hashes: Dict[str, str] = {}  # dhash -> seller_id
-_in_memory_verifications: Dict[str, Dict[str, Any]] = {}
 
 
 class TrustService:
     seller_repo = SellerRepository()
+    verif_repo = VerificationRepository()
 
     @classmethod
     def compute_dhash(cls, image_data_or_url: str) -> str:
@@ -172,6 +174,14 @@ class TrustService:
         now = datetime.now(timezone.utc)
         evidence_id = f"verif_{uuid.uuid4().hex[:12]}"
 
+        # Update seller location & coordinates if provided with live capture
+        if req.latitude is not None and req.longitude is not None:
+            if not seller.location:
+                seller.location = SellerLocation(latitude=req.latitude, longitude=req.longitude)
+            else:
+                seller.location.latitude = req.latitude
+                seller.location.longitude = req.longitude
+
         evidence = VerificationEvidenceInDB(
             _id=evidence_id,
             seller_id=seller_id,
@@ -189,11 +199,6 @@ class TrustService:
             updated_at=now,
         )
 
-        # Update seller location if coordinates provided with live capture
-        if req.latitude and req.longitude and seller.location:
-            seller.location.latitude = req.latitude
-            seller.location.longitude = req.longitude
-
         # Compute full trust signals
         signals = await cls.evaluate_trust_signals(user, seller, evidence)
 
@@ -201,16 +206,33 @@ class TrustService:
         evidence.risk_tier = signals.risk_tier
         evidence.verification_status = signals.verification_status
 
-        # Save verification record
-        _in_memory_verifications[seller_id] = evidence.model_dump(by_alias=True)
+        # Persist verification record to PostgreSQL database
+        await cls.verif_repo.create(evidence)
 
-        # Update seller profile record with new trust score and verification badge
-        await cls.seller_repo.update(seller_id, {
+        # Prepare update dict for seller profile record
+        update_seller_dict: Dict[str, Any] = {
             "trust_score": signals.total_trust_score,
             "verification_status": signals.verification_status.value,
             "is_onboarded": True,
             "workspace_photos": [req.workspace_photo, req.process_photo, req.finished_product_photo],
-        })
+        }
+
+        if req.latitude is not None and req.longitude is not None and seller.location:
+            loc_dict = seller.location.model_dump()
+            loc_dict["captured_at"] = datetime.now(timezone.utc).isoformat()
+            update_seller_dict["location"] = loc_dict
+            update_seller_dict["latitude"] = req.latitude
+            update_seller_dict["longitude"] = req.longitude
+
+            # Also sync coordinates to user record
+            await UserRepository.update(user.id, {
+                "location": loc_dict,
+                "latitude": req.latitude,
+                "longitude": req.longitude,
+            })
+
+        # Update seller profile record with new trust score, coordinates, and verification badge
+        await cls.seller_repo.update(seller_id, update_seller_dict)
 
         return VerificationResponse(
             id=evidence_id,
@@ -231,7 +253,6 @@ class TrustService:
             return TrustSignalBreakdown()
 
         seller_id = str(seller.id) if seller.id else f"seller_{user.id}"
-        evidence_doc = _in_memory_verifications.get(seller_id)
-        evidence = VerificationEvidenceInDB(**evidence_doc) if evidence_doc else None
+        evidence = await cls.verif_repo.get_by_seller_id(seller_id)
 
         return await cls.evaluate_trust_signals(user, seller, evidence)

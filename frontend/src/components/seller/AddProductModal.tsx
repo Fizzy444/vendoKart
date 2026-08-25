@@ -100,6 +100,14 @@ export function AddProductModal({
   const [productImageDataUri, setProductImageDataUri] = useState<string>("");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // Sample craft placeholders by category for quick listing
+  const SAMPLE_CRAFT_IMAGES: Record<string, string> = {
+    "Bamboo Craft": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23132a13'/><path d='M100 50 L100 250 M140 50 L140 250 M180 50 L180 250 M220 50 L220 250 M260 50 L260 250 M300 50 L300 250' stroke='%2331572c' stroke-width='8'/><circle cx='200' cy='150' r='60' fill='%2390a955' opacity='0.7'/><text x='200' y='155' font-size='16' fill='%23ecf39e' text-anchor='middle' font-family='sans-serif' font-weight='bold'>Bamboo Heritage Craft</text></svg>",
+    "Handloom & Textiles": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%232b0938'/><circle cx='200' cy='150' r='70' fill='%237b2cbf' opacity='0.6'/><text x='200' y='155' font-size='16' fill='%23e0aaff' text-anchor='middle' font-family='sans-serif' font-weight='bold'>Handwoven Silk & Textiles</text></svg>",
+    "Pottery & Ceramics": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%233a1e05'/><circle cx='200' cy='150' r='65' fill='%239c6644' opacity='0.7'/><text x='200' y='155' font-size='16' fill='%23ddb892' text-anchor='middle' font-family='sans-serif' font-weight='bold'>Terracotta & Pottery</text></svg>",
+    "Woodworking & Carving": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%2328180c'/><circle cx='200' cy='150' r='65' fill='%237f4f24' opacity='0.7'/><text x='200' y='155' font-size='16' fill='%23ede0d4' text-anchor='middle' font-family='sans-serif' font-weight='bold'>Carved Wood Artisan</text></svg>",
+  };
+
   // Live Deterministic Pricing Calculations (§11)
   const unitLabourCost =
     dailyCapacity > 0 ? (workersCount * labourRate) / dailyCapacity : 0;
@@ -122,22 +130,54 @@ export function AddProductModal({
 
   if (!isOpen) return null;
 
-  // Handle direct file upload from device
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Compress and handle direct file upload from device
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("Image size should be less than 5MB");
-        return;
-      }
+    if (!file) return;
+
+    try {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setImagePreview(result);
-        setProductImageDataUri(result);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          const MAX_WIDTH = 1000;
+          const MAX_HEIGHT = 1000;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx?.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+          setImagePreview(dataUrl);
+          setProductImageDataUri(dataUrl);
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
+    } catch {
+      setErrorMsg("Failed to process image file.");
     }
+  };
+
+  const handleUseSampleImage = () => {
+    const sample = SAMPLE_CRAFT_IMAGES[craftCategory] || SAMPLE_CRAFT_IMAGES["Bamboo Craft"];
+    setImagePreview(sample);
+    setProductImageDataUri(sample);
   };
 
   const handleRemoveImage = () => {
@@ -209,10 +249,17 @@ export function AddProductModal({
   };
 
   return (
-    <div className="w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in duration-200">
-      {/* Card Header */}
-      <div className="p-6 sm:p-7 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-        <div className="flex items-center gap-3">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Card Header */}
+        <div className="p-6 sm:p-7 border-b border-slate-800 flex items-center justify-between bg-slate-950 sticky top-0 z-10">
+          <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-artisan-500/10 text-artisan-400 flex items-center justify-center border border-artisan-500/20 shrink-0">
             <Plus className="w-5 h-5" />
           </div>
@@ -372,21 +419,34 @@ export function AddProductModal({
               </div>
             </div>
           ) : (
-            /* File Upload Button / Drag Area */
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-slate-700 hover:border-artisan-500/70 rounded-2xl p-8 text-center bg-slate-950/60 hover:bg-slate-950 cursor-pointer transition-all space-y-2 group max-w-lg"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20 group-hover:scale-110 transition-transform">
-                <Upload className="w-6 h-6" />
+            /* File Upload Button / Drag Area + Sample Presets */
+            <div className="space-y-3 max-w-lg">
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-700 hover:border-artisan-500/70 rounded-2xl p-6 text-center bg-slate-950/60 hover:bg-slate-950 cursor-pointer transition-all space-y-2 group"
+              >
+                <div className="w-10 h-10 rounded-2xl bg-artisan-500/10 text-artisan-400 mx-auto flex items-center justify-center border border-artisan-500/20 group-hover:scale-110 transition-transform">
+                  <Upload className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-200">
+                    Click to select photo from device
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">
+                    Supports PNG, JPG, JPEG, WEBP (auto-compressed)
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs font-bold text-slate-200">
-                  Click to select product image from your device
-                </p>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Supports PNG, JPG, JPEG, WEBP (Max 5MB)
-                </p>
+
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500">Or use sample photo:</span>
+                <button
+                  type="button"
+                  onClick={handleUseSampleImage}
+                  className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-artisan-300 text-[11px] font-semibold flex items-center gap-1 transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 text-artisan-400" /> Use {craftCategory} Sample Image
+                </button>
               </div>
             </div>
           )}
@@ -664,5 +724,6 @@ export function AddProductModal({
         </div>
       </form>
     </div>
+  </div>
   );
 }

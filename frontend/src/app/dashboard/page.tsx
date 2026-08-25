@@ -205,49 +205,51 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Modals & Wizards (Rendered as Fixed Dialog Overlays) */}
+      {isWizardOpen && (
+        <SellerProfileWizard
+          initialProfile={sellerProfile}
+          isOpen={isWizardOpen}
+          onClose={() => setIsWizardOpen(false)}
+          onSuccess={(updated) => {
+            setSellerProfile(updated);
+            refreshUser();
+            setIsWizardOpen(false);
+          }}
+        />
+      )}
+
+      {isAddProductOpen && (
+        <AddProductModal
+          isOpen={isAddProductOpen}
+          sellerProfile={sellerProfile}
+          onClose={() => setIsAddProductOpen(false)}
+          onSuccess={(newProduct) => {
+            setProducts((prev) => [newProduct, ...prev]);
+            fetchSellerProfile();
+            refreshUser();
+            setIsAddProductOpen(false);
+          }}
+        />
+      )}
+
+      {isVerificationOpen && (
+        <SellerVerificationWizard
+          sellerProfile={sellerProfile}
+          onClose={() => setIsVerificationOpen(false)}
+          onVerificationComplete={(res) => {
+            fetchSellerProfile();
+            refreshUser();
+            setIsVerificationOpen(false);
+          }}
+        />
+      )}
+
       {/* ============================================================ */}
       {/* SELLER DASHBOARD VIEW                                        */}
       {/* ============================================================ */}
       {isSeller ? (
         <>
-          {/* 2. In-Page Studio Profile Editor (When Editing) */}
-          {isWizardOpen && (
-            <SellerProfileWizard
-              initialProfile={sellerProfile}
-              isOpen={isWizardOpen}
-              onClose={() => setIsWizardOpen(false)}
-              onSuccess={(updated) => {
-                setSellerProfile(updated);
-                refreshUser();
-                setIsWizardOpen(false);
-              }}
-            />
-          )}
-
-          {/* 3. In-Page Add Product Listing Modal / Card */}
-          {isAddProductOpen && (
-            <AddProductModal
-              isOpen={isAddProductOpen}
-              sellerProfile={sellerProfile}
-              onClose={() => setIsAddProductOpen(false)}
-              onSuccess={(newProduct) => {
-                setProducts((prev) => [newProduct, ...prev]);
-                setIsAddProductOpen(false);
-              }}
-            />
-          )}
-
-          {/* 4. In-Page Live Camera & Presence Verification Studio (§12) */}
-          {isVerificationOpen && (
-            <SellerVerificationWizard
-              sellerProfile={sellerProfile}
-              onClose={() => setIsVerificationOpen(false)}
-              onVerificationComplete={(res) => {
-                fetchSellerProfile();
-                setIsVerificationOpen(false);
-              }}
-            />
-          )}
 
           {/* 5. Onboarding Prompt Banner (If seller hasn't completed full studio setup) */}
           {sellerProfile && !sellerProfile.is_onboarded && !isWizardOpen && !isAddProductOpen && !isVerificationOpen && (

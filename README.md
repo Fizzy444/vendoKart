@@ -39,7 +39,7 @@
 
 ### Backend
 - **Framework**: FastAPI (Async Python)
-- **Database**: MongoDB (Motor async driver) with resilient In-Memory fallback
+- **Database**: PostgreSQL (SQLAlchemy 2.0 async + asyncpg) with resilient async SQLite fallback
 - **Authentication**: JWT Bearer Tokens, 2Factor.in SMS/Voice OTP integration
 - **Vision & Fraud**: Perceptual dHash, Bitwise Hamming Distance duplicate detection
 - **Testing**: Pytest, Pytest-Asyncio, HTTPX
@@ -81,7 +81,7 @@ vendoKart/
 ### Prerequisites
 - **Node.js**: v18.17.0+ or v20+
 - **Python**: v3.11+
-- **MongoDB**: Optional (automatic in-memory fallback enabled for local dev/testing)
+- **PostgreSQL**: PostgreSQL 16+ or Docker container (resilient async SQLite store enabled for offline local dev/testing)
 
 ---
 
@@ -155,9 +155,13 @@ SECRET_KEY="your-jwt-secret-key"
 ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-# MongoDB (Optional, in-memory used if offline)
-MONGODB_URL="mongodb://localhost:27017"
-MONGODB_DB_NAME="vendokart_db"
+# PostgreSQL Database
+POSTGRES_USER=artisan
+POSTGRES_PASSWORD=artisan_dev_password
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=artisan_commerce
+DATABASE_URL=postgresql+asyncpg://artisan:artisan_dev_password@localhost:5432/artisan_commerce
 
 # 2Factor SMS OTP Service
 TWOFACTOR_API_KEY="your-2factor-api-key"

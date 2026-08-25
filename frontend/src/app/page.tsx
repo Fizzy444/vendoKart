@@ -135,7 +135,7 @@ export default function HomePage() {
                 Foundations & Infrastructure Status
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Real-time connection verification for FastAPI, MongoDB, Redis, and Security Tokens.
+                Real-time connection verification for FastAPI, PostgreSQL, Redis, and Security Tokens.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -154,7 +154,7 @@ export default function HomePage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
                   <Database className="w-4 h-4 text-emerald-400" />
-                  MongoDB (System of Record)
+                  PostgreSQL (System of Record)
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>

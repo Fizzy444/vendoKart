@@ -63,18 +63,19 @@ export const AuthCard: React.FC<AuthCardProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
 
-  // Sync if query params change
+  // Sync if query params change and reset previous OTP session
   useEffect(() => {
     if (queryRole && (queryRole === "seller" || queryRole === "buyer")) {
       setRole(queryRole);
     }
-  }, [queryRole]);
-
-  useEffect(() => {
     if (queryMode && (queryMode === "login" || queryMode === "register")) {
       setMode(queryMode);
     }
-  }, [queryMode]);
+    setStep("form");
+    setOtp("");
+    setError(null);
+    setIsLoading(false);
+  }, [queryRole, queryMode]);
 
   // Resend cooldown timer
   useEffect(() => {

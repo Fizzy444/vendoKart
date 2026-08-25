@@ -17,9 +17,21 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-super-secret-key-change-in-production-1234567890"
     API_V1_STR: str = "/api/v1"
 
-    # MongoDB
-    MONGODB_URI: str = "mongodb://localhost:27017"
-    MONGODB_DATABASE: str = "artisan_commerce"
+    # PostgreSQL Database
+    POSTGRES_USER: str = "artisan"
+    POSTGRES_PASSWORD: str = "artisan_dev_password"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_DB: str = "artisan_commerce"
+    DATABASE_URL: Union[str, None] = None
+
+    @property
+    def async_database_url(self) -> str:
+        if self.DATABASE_URL:
+            if self.DATABASE_URL.startswith("postgresql://"):
+                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return self.DATABASE_URL
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"

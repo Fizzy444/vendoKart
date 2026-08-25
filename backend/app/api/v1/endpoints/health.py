@@ -1,7 +1,7 @@
 import time
 from fastapi import APIRouter
 from app.core.config import settings
-from app.core.database import db_state, get_database, get_redis_client
+from app.core.database import db_state, get_redis_client, ping_database
 from app.schemas.response import HealthResponse
 
 router = APIRouter()
@@ -15,10 +15,8 @@ async def health_check():
     db_status = "unhealthy"
     db_latency_ms = None
     try:
-        if db_state.client is not None:
-            start = time.perf_counter()
-            await db_state.client.admin.command("ping")
-            db_latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        if db_state.is_db_online:
+            db_latency_ms = await ping_database()
             db_status = "healthy"
     except Exception as e:
         db_status = f"error: {str(e)}"
@@ -42,13 +40,15 @@ async def health_check():
         "healthy" if (db_status == "healthy" and redis_status == "healthy") else "degraded"
     )
 
+    db_name = settings.POSTGRES_DB if db_state.is_postgres_online else "artisan_commerce_sqlite"
+
     return HealthResponse(
         status=overall_status,
         app_name=settings.APP_NAME,
         environment=settings.APP_ENV,
         database={
             "status": db_status,
-            "database_name": settings.MONGODB_DATABASE,
+            "database_name": db_name,
             "latency_ms": db_latency_ms,
         },
         redis={

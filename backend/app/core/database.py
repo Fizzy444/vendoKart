@@ -1,65 +1,138 @@
 import asyncio
 import logging
-from typing import Optional
-from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+import time
+from typing import AsyncGenerator, Optional
 import redis.asyncio as aioredis
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from app.core.config import settings
 
 logger = logging.getLogger("artisan.database")
 
 
-class Database:
-    client: Optional[AsyncIOMotorClient] = None
-    db: Optional[AsyncIOMotorDatabase] = None
+class DatabaseState:
+    engine: Optional[AsyncEngine] = None
+    session_factory: Optional[async_sessionmaker[AsyncSession]] = None
     redis: Optional[aioredis.Redis] = None
-    is_mongo_online: bool = False
+    is_db_online: bool = False
+    is_postgres_online: bool = False
     is_redis_online: bool = False
+    database_url: str = ""
 
 
-db_state = Database()
+db_state = DatabaseState()
 
 
-async def connect_to_mongo():
-    logger.info(f"Connecting to MongoDB at {settings.MONGODB_URI}...")
+async def connect_to_postgres():
+    """Initializes async database connection, creates tables, and verifies health."""
+    db_url = settings.async_database_url
+    logger.info(f"Connecting to PostgreSQL database at {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}...")
+    
     try:
-        db_state.client = AsyncIOMotorClient(
-            settings.MONGODB_URI,
-            serverSelectionTimeoutMS=800,
-            connectTimeoutMS=800,
-            socketTimeoutMS=800,
+        engine = create_async_engine(
+            db_url,
+            echo=False,
+            pool_pre_ping=True,
+            pool_size=10,
+            max_overflow=20,
+            connect_args={"timeout": 2.0} if "asyncpg" in db_url else {},
         )
-        db_state.db = db_state.client[settings.MONGODB_DATABASE]
-        # Quick ping to verify connectivity with 800ms timeout
-        await asyncio.wait_for(db_state.client.admin.command("ping"), timeout=0.8)
-        db_state.is_mongo_online = True
-        logger.info(f"Connected to MongoDB database: {settings.MONGODB_DATABASE}")
+        
+        # Test connection
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        
+        db_state.engine = engine
+        db_state.session_factory = async_sessionmaker(
+            bind=engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autoflush=False,
+        )
+        db_state.is_db_online = True
+        db_state.is_postgres_online = True
+        db_state.database_url = db_url
+        logger.info(f"Connected to PostgreSQL database: {settings.POSTGRES_DB}")
 
-        # Ensure indexes
-        await _create_indexes(db_state.db)
+        # Ensure all tables exist
+        await create_tables()
+        logger.info("PostgreSQL database tables and schemas verified successfully.")
     except Exception as e:
-        db_state.is_mongo_online = False
-        logger.warning(f"MongoDB not reachable on startup ({e}). Resilient in-memory store activated.")
+        logger.warning(f"PostgreSQL not reachable at {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT} ({e}).")
+        logger.info("Activating resilient SQLite async store for offline local operation / testing...")
+        
+        # Fallback to local SQLite async database so the app can always start
+        sqlite_url = "sqlite+aiosqlite:///artisan_commerce_dev.db"
+        fallback_engine = create_async_engine(sqlite_url, echo=False)
+        db_state.engine = fallback_engine
+        db_state.session_factory = async_sessionmaker(
+            bind=fallback_engine,
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autoflush=False,
+        )
+        db_state.is_db_online = True
+        db_state.is_postgres_online = False
+        db_state.database_url = sqlite_url
+        await create_tables()
+        logger.info("Resilient local SQLite database initialized with all tables.")
 
 
-async def _create_indexes(db: AsyncIOMotorDatabase):
-    """Ensure core database indexes are created on startup."""
-    try:
-        await db.users.create_index("phone", unique=True)
-        await db.users.create_index("created_at")
-        await db.sellers.create_index("user_id", unique=True)
-        logger.info("MongoDB indexes verified successfully.")
-    except Exception as e:
-        logger.warning(f"Error creating indexes: {e}")
+async def create_tables():
+    """Create all relational tables defined in models and ensure columns exist."""
+    if db_state.engine is not None:
+        from app.models.base import Base
+        import app.models  # noqa: F401
+        async with db_state.engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+            
+            # Safe schema auto-migration for dev SQLite databases
+            if "sqlite" in str(db_state.database_url):
+                migrations = [
+                    ("users", [
+                        ("latitude", "FLOAT"),
+                        ("longitude", "FLOAT"),
+                        ("city", "VARCHAR(100)"),
+                        ("state", "VARCHAR(100)"),
+                        ("pincode", "VARCHAR(20)"),
+                    ]),
+                    ("sellers", [
+                        ("latitude", "FLOAT"),
+                        ("longitude", "FLOAT"),
+                        ("address", "VARCHAR(255)"),
+                        ("city", "VARCHAR(100)"),
+                        ("district", "VARCHAR(100)"),
+                        ("state", "VARCHAR(100)"),
+                        ("pincode", "VARCHAR(20)"),
+                    ]),
+                ]
+                for table, columns in migrations:
+                    for col_name, col_type in columns:
+                        try:
+                            await conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
+                        except Exception:
+                            pass
 
 
-async def close_mongo_connection():
-    logger.info("Closing MongoDB connection...")
-    if db_state.client is not None:
-        db_state.client.close()
-        logger.info("MongoDB connection closed.")
+async def close_db_connection():
+    """Disposes database connection pool."""
+    logger.info("Closing database connection pool...")
+    if db_state.engine is not None:
+        await db_state.engine.dispose()
+        db_state.engine = None
+        db_state.session_factory = None
+        db_state.is_db_online = False
+        db_state.is_postgres_online = False
+        logger.info("Database connection closed.")
 
 
 async def connect_to_redis():
+    """Initializes Redis connection."""
     logger.info(f"Connecting to Redis at {settings.REDIS_URL}...")
     try:
         db_state.redis = aioredis.from_url(
@@ -76,27 +149,53 @@ async def connect_to_redis():
 
 
 async def close_redis_connection():
+    """Closes Redis connection."""
     logger.info("Closing Redis connection...")
     if db_state.redis is not None:
         await db_state.redis.aclose()
+        db_state.redis = None
+        db_state.is_redis_online = False
         logger.info("Redis connection closed.")
 
 
-def get_database() -> AsyncIOMotorDatabase:
-    if db_state.db is None:
-        if db_state.client is None:
-            db_state.client = AsyncIOMotorClient(
-                settings.MONGODB_URI,
-                serverSelectionTimeoutMS=800,
-                connectTimeoutMS=800,
-                socketTimeoutMS=800,
-            )
-        db_state.db = db_state.client[settings.MONGODB_DATABASE]
-    return db_state.db
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for yielding transactional database sessions."""
+    if db_state.session_factory is None:
+        await connect_to_postgres()
+    
+    if db_state.session_factory is not None:
+        async with db_state.session_factory() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+            finally:
+                await session.close()
+    else:
+        raise RuntimeError("Database session factory is not initialized")
 
 
-def is_mongo_online() -> bool:
-    return db_state.is_mongo_online
+def get_db_session() -> AsyncSession:
+    """Creates a standalone session (for repositories/services outside request context)."""
+    if db_state.session_factory is None:
+        raise RuntimeError("Database session factory is not initialized")
+    return db_state.session_factory()
+
+
+async def ping_database() -> float:
+    """Pings database and returns query latency in milliseconds."""
+    if db_state.engine is None:
+        raise RuntimeError("Database engine is not initialized")
+    start = time.perf_counter()
+    async with db_state.engine.connect() as conn:
+        await conn.execute(text("SELECT 1"))
+    return round((time.perf_counter() - start) * 1000, 2)
+
+
+def is_db_online() -> bool:
+    return db_state.is_db_online
 
 
 def get_redis_client() -> Optional[aioredis.Redis]:

@@ -30,7 +30,7 @@ async def preview_pricing(
 @router.post("", response_model=ProductResponse, status_code=status.HTTP_201_CREATED)
 async def create_product(
     req: ProductCreateRequest,
-    current_user: UserResponse = Depends(require_role([UserRole.SELLER])),
+    current_user: UserResponse = Depends(get_current_active_user),
 ) -> ProductResponse:
     """
     Create a new artisan product listing with deterministic pricing calculation.

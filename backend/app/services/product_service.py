@@ -4,9 +4,10 @@ from typing import Any, Dict, List, Optional
 from fastapi import HTTPException, status
 from app.models.product import ProductInDB, ProductStatus
 from app.models.seller import SellerProfileInDB
-from app.models.user import UserInDB
+from app.models.user import UserInDB, UserRole
 from app.repositories.product_repository import ProductRepository
 from app.repositories.seller_repository import SellerRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.product import (
     PricingPreviewRequest,
     PricingPreviewResponse,
@@ -31,6 +32,13 @@ class ProductService:
 
     @classmethod
     async def create_product(cls, user: UserInDB, req: ProductCreateRequest) -> ProductResponse:
+        # Ensure user has seller role enabled
+        if UserRole.SELLER not in user.roles:
+            user_roles = list(set([r.value if hasattr(r, "value") else str(r) for r in user.roles] + [UserRole.SELLER.value]))
+            updated_user = await UserRepository.update(user.id, {"roles": user_roles})
+            if updated_user:
+                user = updated_user
+
         # Get or auto-initialize seller profile for workspace defaults
         seller_profile = await SellerService.get_or_create_profile(user)
         seller = await cls.seller_repo.get_by_user_id(user.id)

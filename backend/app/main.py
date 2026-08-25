@@ -6,9 +6,9 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import (
-    close_mongo_connection,
+    close_db_connection,
     close_redis_connection,
-    connect_to_mongo,
+    connect_to_postgres,
     connect_to_redis,
 )
 
@@ -23,11 +23,11 @@ logger = logging.getLogger("artisan.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Initializing application lifespan...")
-    await connect_to_mongo()
+    await connect_to_postgres()
     await connect_to_redis()
     yield
     logger.info("Shutting down application lifespan...")
-    await close_mongo_connection()
+    await close_db_connection()
     await close_redis_connection()
 
 
@@ -41,15 +41,15 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# CORS configuration
-if settings.CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+# CORS configuration: Allow localhost, 127.0.0.1, and local LAN network IPs
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[str(origin) for origin in settings.CORS_ORIGINS] if settings.CORS_ORIGINS else ["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|169\.254\.\d+\.\d+)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Mount API routers
 app.include_router(api_router, prefix=settings.API_V1_STR)

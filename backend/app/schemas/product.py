@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 from app.models.seller import CraftCategory
 from app.models.product import ProductDimensions, ProductStatus
-from app.services.pricing_engine import PricingBreakdown, PricingInputs
+from app.schemas.pricing import PricingBreakdown, PricingInputs
 
 
 class ProductCreateRequest(BaseModel):
